@@ -1,0 +1,37 @@
+seed: 0
+
+training:
+    numIters: 180              # Number of training iterations 
+    numEps: 100                 # Number of new games to simulate during a new iteration.
+    maxlenOfQueue: 200000     # Number of new game examples (per iteration) to train the neural networks.
+    arenaCompare: 512         # Number of games to played in arena for network evaluation 
+    tempThreshold: 5          # Unused
+    supervised_training: True
+    checkpoint: ./temp_vtx/
+    load_model: False
+    load_folder_file: !!python/tuple ['./temp_vtx/','best.pth.tar']
+    numItersForTrainExamplesHistory: 2 
+    pre_scale_examples: 0.1 #0.01
+    pre_stop_example: 0.0 
+
+model: 
+    nIter: 20
+    verbose: False 
+    mid_steps: 4
+    noise_sigma: 0.0  
+    update_e: False 
+
+optimizer:
+    name: Adam 
+    lr: 0.0005 
+    #dropout: 0.3
+    epochs: 1
+    batch_size: 1
+
+data: 
+    name: hitgraphs_sparse
+    input_dir: ${HEP_DATA}/hitgraphs_belle2_vtxonly
+    n_train: 14000
+    n_valid: 2000
+    batch_size: 1  
+

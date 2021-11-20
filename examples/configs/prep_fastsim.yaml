@@ -1,0 +1,14 @@
+# Input/output configuration
+output_dir: ${HEP_DATA}/events_fastsim
+n_events: 20000
+
+# Event simulation configuration
+simulation:
+    p_min: 0.02      # GeV 
+    p_max: 0.1 
+    theta_min: 0.2967    
+    theta_max: 2.62   
+    num_tracks_min: 30
+    num_tracks_max: 40 
+    num_noise_min: 120
+    num_noise_max: 180
