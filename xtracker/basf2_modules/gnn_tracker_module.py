@@ -11,7 +11,7 @@ import pandas as pd
 import math
 import ROOT
 from ROOT import Belle2
-from ROOT import TVector3, TMatrixDSym
+from ROOT import TVector3, TMatrixDSym, TVectorD
 import basf2 as b2
 
 
@@ -19,9 +19,129 @@ from xtracker.gnn_tracking.ImTracker import ImTracker
 from xtracker.gnn_tracking.TrackingGame import TrackingGame as Game
 from xtracker.gnn_tracking.pytorch.NNet import NNetWrapper as NNet
 from xtracker.utils import dotdict as dotdict
-from xtracker.track_creation import compute_tracks_from_graph
+from xtracker.track_creation import compute_tracks_from_graph_ml
 from xtracker.datasets.graph import Graph, graph_to_sparse, get_batch
 from xtracker.graph_creation import make_graph
+
+from math import sqrt
+
+
+def findCircleRadius(x1, y1, x2, y2, x3, y3):
+    x12 = x1 - x2
+    x13 = x1 - x3
+
+    y12 = y1 - y2
+    y13 = y1 - y3
+
+    y31 = y3 - y1
+    y21 = y2 - y1
+
+    x31 = x3 - x1
+    x21 = x2 - x1
+
+    # x1^2 - x3^2
+    sx13 = pow(x1, 2) - pow(x3, 2)
+
+    # y1^2 - y3^2
+    sy13 = pow(y1, 2) - pow(y3, 2)
+
+    sx21 = pow(x2, 2) - pow(x1, 2)
+    sy21 = pow(y2, 2) - pow(y1, 2)
+
+    f = (((sx13) * (x12) + (sy13) *
+          (x12) + (sx21) * (x13) +
+          (sy21) * (x13)) // (2 *
+                              ((y31) * (x12) - (y21) * (x13))))
+
+    g = (((sx13) * (y12) + (sy13) * (y12) +
+          (sx21) * (y13) + (sy21) * (y13)) //
+         (2 * ((x31) * (y12) - (x21) * (y13))))
+
+    c = (-pow(x1, 2) - pow(y1, 2) -
+         2 * g * x1 - 2 * f * y1)
+
+    # eqn of circle be x^2 + y^2 + 2*g*x + 2*f*y + c = 0
+    # where centre is (h = -g, k = -f) and
+    # radius r as r^2 = h^2 + k^2 - c
+    h = -g
+    k = -f
+    sqr_of_r = h * h + k * k - c
+
+    # r is the radius
+    r = sqrt(sqr_of_r)
+
+    return r
+
+
+def calcPt(radius):
+    Bz = 1.5
+    return Bz * radius * 0.00299792458
+
+
+def calcCurvatureSignum(x):
+    """Calculate curvature based on triplets of measurements.
+        Ignores uncertainties.
+        Returns -1,0,1 depending on the sum of all triplets.
+    """
+
+    if x.shape[0] < 3:
+        return 0
+
+    ab = x[1, :] - x[0, :]
+    bc = x[2, :] - x[1, :]
+    sumOfCurvature = bc[1] * ab[0] - bc[0] * ab[1]
+
+    if 0 <= sumOfCurvature:
+        return 1
+    else:
+        return -1
+
+
+def getSeedState(x):
+
+    # Charge of track from sign of circle defined by hits x
+    charge = -1 * calcCurvatureSignum(x)
+
+    # Radius of circle defined by hits x
+    rho = findCircleRadius(x1=x[0, 0], y1=x[0, 1], x2=x[1, 0], y2=x[1, 1], x3=x[2, 0], y3=x[2, 1])
+
+    # Compute momenta
+    pT = calcPt(rho)
+    momVec = x[1, :] - x[0, :]
+    momVec[2] = 0
+    dr = np.linalg.norm(momVec)
+    momVec = pT * momVec / dr
+    tanLambda = (x[1, 2] - x[0, 2]) / dr
+    pZ = pT * tanLambda
+
+    # Covariance matrix of seed state
+    covSeed = TMatrixDSym(6)
+    covSeed.Zero()  # just to be save
+    covSeed[0][0] = 1
+    covSeed[1][1] = 1
+    covSeed[2][2] = 2 * 2
+    covSeed[3][3] = 0.1 * 0.1
+    covSeed[4][4] = 0.1 * 0.1
+    covSeed[5][5] = 0.2 * 0.2
+
+    # Seed state
+    stateSeed = TVectorD(6)
+
+    # XYZ position of first hit along track
+    stateSeed[0] = x[0, 0]
+    stateSeed[1] = x[0, 1]
+    stateSeed[2] = x[0, 2]
+
+    if charge == 0:
+        stateSeed[3] = 0
+        stateSeed[4] = 0
+        stateSeed[5] = 0
+    else:
+        stateSeed[3] = momVec[0]
+        stateSeed[4] = momVec[1]
+        stateSeed[5] = pZ
+
+    return stateSeed, covSeed, charge
 
 
 class GNNTracker(b2.Module):
@@ -129,23 +249,27 @@ class GNNTracker(b2.Module):
         preds, score = self.tracker.process(board)
 
         # Create tracks
-        tracks = compute_tracks_from_graph(board.x, board.edge_index, preds=preds)
+        tracks, tracks_qi = compute_tracks_from_graph_ml(board.x, board.edge_index, preds=preds)
 
-        for track in tracks:
-            # extrapolate the position and momentum to the point of the first hit on the helix
-            position = TVector3(0.0, 0.0, 0.0)
-            momentum = TVector3(0.0, 0.0, 0.0)
-            charge = 1
+        vtxClusters = Belle2.PyStoreArray("VTXClusters")
+
+        for track, qi in zip(tracks, tracks_qi):
+
+            # Select tensor with hits from track candidate
+            track_hits = hits[['x', 'y', 'z', 'layer']].iloc[track]
+            #track_hits = track_hits.drop_duplicates(subset=['layer'])
+            # if len(track_hits) < 3:
+            #    continue
+
+            # Hits on first three layers
+            x = track_hits[['x', 'y', 'z']].head(3).values
+
+            # Extrapolate the position and momentum to the point of the first hit on the helix
+            # with uncertainties
+            stateSeed, covSeed, charge = getSeedState(x)
+            position = TVector3(stateSeed[0], stateSeed[1], stateSeed[2])
+            momentum = TVector3(stateSeed[3], stateSeed[4], stateSeed[5])
             time = 0
-            qi = 1.0
-            covSeed = TMatrixDSym(6)
-            covSeed.Zero()  # just to be save
-            covSeed[0][0] = 1
-            covSeed[1][1] = 1
-            covSeed[2][2] = 2 * 2
-            covSeed[3][3] = 0.1 * 0.1
-            covSeed[4][4] = 0.1 * 0.1
-            covSeed[5][5] = 0.2 * 0.2
 
             newRecoTrack = self.tracksStoreArrayHelper.addTrack(position, momentum, charge)
             newRecoTrack.setTimeSeed(time)
@@ -153,8 +277,6 @@ class GNNTracker(b2.Module):
             newRecoTrack.setQualityIndicator(qi)
 
             hitCounter = 0
-
-            vtxClusters = Belle2.PyStoreArray("VTXClusters")
 
             for hitID in track:
 

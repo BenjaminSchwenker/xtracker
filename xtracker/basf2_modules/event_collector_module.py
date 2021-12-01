@@ -14,11 +14,9 @@ import basf2 as b2
 
 from tracking.validation.utilities import (
     getHelixFromMCParticle,
-    getSeedTrackFitResult,
     is_primary,
     get_det_hit_ids,
     calc_ndf_from_det_hit_ids,
-    getObjectList,
 )
 
 import numpy as np
