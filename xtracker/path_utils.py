@@ -10,7 +10,8 @@ from pybasf2 import B2WARNING
 from ROOT import Belle2
 from basf2 import register_module
 
-from xtracker.gnn_tracker_module import GNNTracker
+from xtracker.basf2_modules.gnn_tracker_module import GNNTracker
+from xtracker.basf2_modules.track_printer_module import TrackPrinter
 
 
 def add_vtx_track_finding_gnn(
@@ -52,5 +53,16 @@ def add_vtx_track_finding_gnn(
         path.add_module(registerEventlevelTrackingInfo)
 
     # add the tracker
-    tracker = GNNTracker(modelPath=Belle2.FileSystem.findFile(model_path), n_det_layers=n_det_layers)
+    tracker = GNNTracker(
+        modelPath=Belle2.FileSystem.findFile(model_path),
+        n_det_layers=n_det_layers,
+        trackCandidatesColumnName=reco_tracks)
     path.add_module(tracker)
+
+
+def add_track_printer(
+    path,
+    reco_tracks="RecoTracks"
+):
+    printer = TrackPrinter(trackCandidatesColumnName=reco_tracks)
+    path.add_module(printer)
