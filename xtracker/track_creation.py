@@ -7,49 +7,114 @@
 ##########################################################################
 
 import numpy as np
+import torch
+from torch_scatter import scatter_add
+from torch_scatter import scatter_max
+from torch_scatter import scatter_min
 
 
-def compute_tracks_from_graph(x, edges, preds, cut=0.5, min_mc_hits=3):
-    """Compute tracks from segment classifier outputs using a cut approach
+def get_degrees(num_nodes, edge_index):
+    start, end = torch.LongTensor(edge_index)
+    ones = torch.ones(num_nodes)
 
-    The tracks are computed as connected components of event_graph. The event graph
-    connects hits only when the edge probability exceeds a cut.
+    in_degree = scatter_add(ones[start], end, dim=0, dim_size=num_nodes)
+    out_degree = scatter_add(ones[end], start, dim=0, dim_size=num_nodes)
+    return in_degree.data.cpu().numpy(), out_degree.data.cpu().numpy()
+
+
+def max_edges(num_nodes, edge_index, e):
+    start, end = torch.LongTensor(edge_index)
+    e = torch.FloatTensor(e)
+    ones = torch.ones((num_nodes, 1))
+
+    max_in, argmax_in = scatter_max(e[:, None] * ones[start], end, dim=0, dim_size=num_nodes)
+    max_out, argmax_out = scatter_max(e[:, None] * ones[end], start, dim=0, dim_size=num_nodes)
+    return argmax_in.squeeze(1).data.cpu().numpy(), argmax_out.squeeze(1).data.cpu().numpy()
+
+
+def min_edges(num_nodes, edge_index, e):
+    start, end = torch.LongTensor(edge_index)
+    e = torch.FloatTensor(e)
+    ones = torch.ones((num_nodes, 1))
+
+    min_in, argmin_in = scatter_min(e[:, None] * ones[start], end, dim=0, dim_size=num_nodes)
+    min_out, argmin_out = scatter_min(e[:, None] * ones[end], start, dim=0, dim_size=num_nodes)
+    return argmin_in.squeeze(1).data.cpu().numpy(), argmin_out.squeeze(1).data.cpu().numpy()
+
+
+def compute_tracks_from_graph_ml(x, edges, preds, cut=0.5, min_hits=3, min_qi=0.0):
+    """Compute tracks from output graph [x,edges, preds] following maximum likelyhood
+    edges from start node.
+
+    Each row in the tensor x gives node (hit) attributes in the hit graph.  Each column in
+    the tensor edges give the index of sender (1st row) and receiver (2nd row) of a directed
+    edge in the hitgraph. The tensor pred gives the final segement probabilties for edges.
+
+    It is a slow implementation. For testing purposes only.
 
     Args:
-        edges: edge index, subset of segments on hitgraph
-        preds: GNN predictions on edge index
+        x (tensor): node (hit) attributes
+        edges (tensor): edge index, subset of segments on hitgraph
+        preds (tensor): GNN predictions for segment probabilties
+        cut (float): cut on edge (segment) probabilities
 
     Returns:
-        tracks: networkx.connected_components retun value
+        tracks, tracks_qi (list, list): Pair of list giving candidate tracks and their qi
     """
 
+    # Number of nodes (hits)
     num_nodes = x.shape[0]
+
+    # Number of directed edges (segments)
     num_edges = preds.shape[0]
 
+    # For each node, compute the index of the maximum likelyhood
+    # ingoing and outgoing edge.
+    argmax_in, argmax_out = max_edges(num_nodes, edges, preds)
+
+    out_seed_hit_indices = []
+    in_seed_hit_indices = []
+    for i in range(num_nodes):
+        if preds[argmax_out[i]] > cut and preds[argmax_in[i]] < cut:
+            out_seed_hit_indices.append(i)
+
+        if preds[argmax_in[i]] > cut and preds[argmax_out[i]] < cut:
+            in_seed_hit_indices.append(i)
+
+    # Lets try to process the outgoing seeds first.
+
+    # These are the track candidates
     tracks = []
 
-    for j in range(num_edges):
+    # These are qi values for track candiates
+    tracks_qi = []
 
-        if preds[j] > cut:
+    # This shows if a node is already used (1) or not (0)
+    used_hits = np.zeros(num_nodes)
 
-            sp1, sp2 = edges[0, j], edges[1, j]
+    for seed in out_seed_hit_indices:
 
-            isNewTrack = True
-            for trk in tracks:
-                if sp1 in trk:
-                    isNewTrack = False
-                    trk.append(sp2)
-                    break
-                elif sp2 in trk:
-                    isNewTrack = False
-                    trk.append(sp1)
-                    break
+        curr_hit = seed
+        track = [curr_hit, ]
+        qi = 0.0
+        used_hits[curr_hit] += 1
 
-            if isNewTrack:
-                tracks.append([sp1, sp2])
+        for step in range(100):
+            # find next hit
+            delta_qi = preds[argmax_out[curr_hit]]
+            if delta_qi > cut:
+                curr_hit = edges[1, argmax_out[curr_hit]]
+                track.append(curr_hit)
+                used_hits[curr_hit] += 1
+                qi += delta_qi
+            else:
+                break
 
-    tracks = [list(set(track)) for track in tracks]
+        if len(track) >= min_hits:
+            qi = qi / (len(track) - 1)
 
-    tracks = [track for track in tracks if len(track) >= min_mc_hits]
+        if len(track) >= min_hits and qi >= min_qi:
+            tracks.append(track)
+            tracks_qi.append(qi)
 
-    return tracks
+    return tracks, tracks_qi
