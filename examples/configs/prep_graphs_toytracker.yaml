@@ -1,6 +1,6 @@
 # Input/output configuration
-input_dir: ${HEP_DATA}/events_fastsim
-output_dir: ${HEP_DATA}/hitgraphs_fastsim
+input_dir: ${HEP_DATA}/events_toytracker
+output_dir: ${HEP_DATA}/hitgraphs_toytracker
 
 n_events: 20000
 

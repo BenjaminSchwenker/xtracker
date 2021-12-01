@@ -1,6 +1,6 @@
-# Input/output configuration
-output_dir: ${HEP_DATA}/events_fastsim
-n_events: 20000
+# Output configuration
+output_dir: ${HEP_DATA}/events_toytracker
+n_events: 10000
 
 # Event simulation configuration
 simulation:
