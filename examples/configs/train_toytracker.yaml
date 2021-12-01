@@ -30,7 +30,7 @@ optimizer:
 
 data: 
     name: hitgraphs_sparse
-    input_dir: ${HEP_DATA}/hitgraphs_fastsim
+    input_dir: ${HEP_DATA}/hitgraphs_toytracker
     n_train: 8000
     n_valid: 1000
     batch_size: 1  

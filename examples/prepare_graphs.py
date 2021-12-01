@@ -13,10 +13,17 @@
 """
 Data preparation script for training of xtracker.
 
-Usage: python3 prepare_graphs.py configs/prep_graphs_belle2.yaml
+Prepares hitgraphs from simulated events for training. Can be used for
+Belle II MC and simplified toytracker.
+
+Usage:
+python3 prepare_graphs.py configs/prep_graphs_belle2.yaml
+
+or
+
+python3 prepare_graphs.py configs/prep_graphs_toytracker.yaml
 """
 
-# System
 import os
 import argparse
 import logging
@@ -24,7 +31,6 @@ from pathlib import Path
 import multiprocessing as mp
 from functools import partial
 
-# Externals
 import yaml
 import numpy as np
 import pandas as pd
@@ -55,13 +61,13 @@ def process_event(
     # Read the data
     logging.info('Event %i, read event' % evtid)
 
-    if not Path(input_dir + '/graph_id_{}.h5'.format(evtid + 1)).is_file():
+    if not Path(input_dir + '/graph_id_{}.h5'.format(evtid)).is_file():
         logging.info('Event %i not found.' % evtid)
         return
 
-    hits = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid + 1)), 'hits')
-    truth = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid + 1)), 'truth')
-    particles = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid + 1)), 'particles')
+    hits = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid)), 'hits')
+    truth = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid)), 'truth')
+    particles = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid)), 'particles')
 
     # Read the data
     logging.info('Event %i, generate graph' % evtid)

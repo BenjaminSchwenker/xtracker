@@ -10,8 +10,11 @@
 ##########################################################################
 
 """
+Performs training of xtracker neural net using prepared training samples
+defined in train config file.
+
 Usage: python3 train.py  configs/train_belle2.yaml
-Usage: python3 train.py  configs/train_fastsim.yaml
+Usage: python3 train.py  configs/train_toytracker.yaml
 """
 
 

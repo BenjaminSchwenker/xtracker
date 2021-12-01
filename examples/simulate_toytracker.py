@@ -9,8 +9,15 @@
 # This file is licensed under LGPL-3.0, see LICENSE.md.                  #
 ##########################################################################
 
+
 """
-Usage: python3 prepare_fastsim.py  configs/prep_fastsim.yaml
+Script to simulate toy MC for training of track finder.
+
+The simulated detector is a 6 layer pixel vertex detector. The sensitive volumes
+are are six thin cylindrical silicon layers. It is a toy simulation neglecting material
+and detector resolution effects.
+
+Usage: python3 simulate_toytracker.py  configs/sim_toytracker.yaml
 """
 
 # System
@@ -29,9 +36,9 @@ import xtracker.fastsim.fastsim as toyMC
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser('prepare_fastsim.py')
+    parser = argparse.ArgumentParser('simulate_toytracker.py')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/prep_graphs_fastsim.yaml')
+    add_arg('config', nargs='?', default='configs/configs/sim_toytracker.yaml')
     add_arg('--n-workers', type=int, default=1)
     add_arg('--n-tasks', type=int, default=1)
     add_arg('--outputdir', type=str, default='./')
