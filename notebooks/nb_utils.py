@@ -14,18 +14,11 @@
 This file contains some common helper code for the analysis notebooks.
 """
 
-# System
 import os
 import yaml
 import pickle
 from collections import namedtuple
 
-from sklearn.cluster import DBSCAN
-from scipy.sparse import dok_matrix
-
-
-# Externals
-import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -181,8 +174,8 @@ def plot_outputs_roc(preds, targets, metrics):
     plt.tight_layout()
 
 
-def draw_sample(hits, edges, preds, labels, cut=0.5, figsize=(15, 7), rlim=(
-        0, 1.4), zlim=(-1, 1), philim=(-1.2, 1.2), mconly=False, fullonly=False):
+def draw_sample(hits, edges, preds, labels, cut=0.5, figsize=(9, 6), rlim=(
+        0, 15), zlim=(-40, 40), philim=(-np.pi, np.pi), mconly=False, fullonly=False):
     r = hits[:, 0]
     phi = hits[:, 1]
     z = hits[:, 2]
@@ -203,53 +196,37 @@ def draw_sample(hits, edges, preds, labels, cut=0.5, figsize=(15, 7), rlim=(
     # Draw the segments
     for j in range(labels.shape[0]):
 
+        zp = np.array([z[edges[0, j]], z[edges[1, j]]])
+        rp = np.array([r[edges[0, j]], r[edges[1, j]]])
+        phip = np.array([phi[edges[0, j]], phi[edges[1, j]]])
+
         # Only draw true hit hitgraph
         if mconly:
             if labels[j] == 1:
-                ax0.plot([z[edges[0, j]], z[edges[1, j]]],
-                         [r[edges[0, j]], r[edges[1, j]]],
-                         '--', c='g')
-                ax1.plot([phi[edges[0, j]], phi[edges[1, j]]],
-                         [r[edges[0, j]], r[edges[1, j]]],
-                         '--', c='g')
+                ax0.plot(zp, rp, '--', c='g')
+                ax1.plot(phip, rp, '--', c='g')
             continue
 
         # Only draw true hit hitgraph
         if fullonly:
-            ax0.plot([z[edges[0, j]], z[edges[1, j]]],
-                     [r[edges[0, j]], r[edges[1, j]]],
-                     '--', c='k')
-            ax1.plot([phi[edges[0, j]], phi[edges[1, j]]],
-                     [r[edges[0, j]], r[edges[1, j]]],
-                     '--', c='k')
+            ax0.plot(zp, rp, '--', c='k')
+            ax1.plot(phip, rp, '--', c='k')
             continue
 
         # False negatives
         if (preds[j] < cut and labels[j] > cut):
-            ax0.plot([z[edges[0, j]], z[edges[1, j]]],
-                     [r[edges[0, j]], r[edges[1, j]]],
-                     '--', c='b')
-            ax1.plot([phi[edges[0, j]], phi[edges[1, j]]],
-                     [r[edges[0, j]], r[edges[1, j]]],
-                     '--', c='b')
+            ax0.plot(zp, rp, '--', c='b')
+            ax1.plot(phip, rp, '--', c='b')
 
         # False positives
         if preds[j] > cut and labels[j] < cut:
-            ax0.plot([z[edges[0, j]], z[edges[1, j]]],
-                     [r[edges[0, j]], r[edges[1, j]]],
-                     '--', c='r', alpha=preds[j])
-            ax1.plot([phi[edges[0, j]], phi[edges[1, j]]],
-                     [r[edges[0, j]], r[edges[1, j]]],
-                     '--', c='r', alpha=preds[j])
+            ax0.plot(zp, rp, '--', c='r', alpha=preds[j])
+            ax1.plot(phip, rp, '--', c='r', alpha=preds[j])
 
         # True positives
         if preds[j] > cut and labels[j] > cut:
-            ax0.plot([z[edges[0, j]], z[edges[1, j]]],
-                     [r[edges[0, j]], r[edges[1, j]]],
-                     '-', c='k', alpha=preds[j])
-            ax1.plot([phi[edges[0, j]], phi[edges[1, j]]],
-                     [r[edges[0, j]], r[edges[1, j]]],
-                     '-', c='k', alpha=preds[j])
+            ax0.plot(zp, rp, '-', c='k', alpha=preds[j])
+            ax1.plot(phip, rp, '-', c='k', alpha=preds[j])
 
     # Adjust axes
     ax0.set_xlabel('$z$')
@@ -259,7 +236,7 @@ def draw_sample(hits, edges, preds, labels, cut=0.5, figsize=(15, 7), rlim=(
     plt.tight_layout()
 
 
-def draw_sample_xy(hits, edges, preds, labels, cut=0.5, figsize=(16, 16), mconly=False, fullonly=False):
+def draw_sample_xy(hits, edges, preds, labels, cut=0.5, figsize=(9, 9), mconly=False, fullonly=False):
     x = hits[:, 0] * np.cos(hits[:, 1])
     y = hits[:, 0] * np.sin(hits[:, 1])
     fig, ax0 = plt.subplots(figsize=figsize)
@@ -273,150 +250,30 @@ def draw_sample_xy(hits, edges, preds, labels, cut=0.5, figsize=(16, 16), mconly
     # Draw the segments
     for j in range(labels.shape[0]):
 
+        xp = np.array([x[edges[0, j]], x[edges[1, j]]])
+        yp = np.array([y[edges[0, j]], y[edges[1, j]]])
+
         # Only draw true hit hitgraph
         if mconly:
             if labels[j] == 1:
-                ax0.plot([x[edges[0, j]], x[edges[1, j]]],
-                         [y[edges[0, j]], y[edges[1, j]]],
-                         '--', c='g')
-
+                ax0.plot(xp, yp, '--', c='g')
             continue
 
         # Only draw true hit hitgraph
         if fullonly:
-            ax0.plot([x[edges[0, j]], x[edges[1, j]]],
-                     [y[edges[0, j]], y[edges[1, j]]],
-                     '--', c='g')
-
+            ax0.plot(xp, yp, '--', c='g')
             continue
 
         # False negatives
         if preds[j] < cut and labels[j] > cut:
-            ax0.plot([x[edges[0, j]], x[edges[1, j]]],
-                     [y[edges[0, j]], y[edges[1, j]]],
-                     '--', c='b')
+            ax0.plot(xp, yp, '--', c='b')
 
         # False positives
         if preds[j] > cut and labels[j] < cut:
-            ax0.plot([x[edges[0, j]], x[edges[1, j]]],
-                     [y[edges[0, j]], y[edges[1, j]]],
-                     '--', c='r', alpha=preds[j])
+            ax0.plot(xp, yp, '--', c='r', alpha=preds[j])
 
         # True positives
         if preds[j] > cut and labels[j] > cut:
-            ax0.plot([x[edges[0, j]], x[edges[1, j]]],
-                     [y[edges[0, j]], y[edges[1, j]]],
-                     '-', c='k', alpha=preds[j])
+            ax0.plot(xp, yp, '-', c='k', alpha=preds[j])
 
     return fig, ax0
-
-
-def compute_tracks_from_gnn(edges, preds, labels, cut=0.5, min_mc_hits=3):
-    """Compute pr and mc tracks from segment classifier outputs using a cut approach
-
-    The mc tracks are computed as connected components of the mc hit graph. The mc graph as
-    connects hits only with True segments.
-
-    The pr tracks are computed as connected components of a pr hit graph. The pr graph
-    connects hits only when the edge probability exceeds a cut.
-
-    Args:
-        edges: edge index, subset of segments on hitgraph
-        preds: GNN predictions on edge index
-        labels: Ground truth on edge index
-
-    Returns:
-        mc_tracks: networkx.connected_components retun value
-        pr_tracks: networkx.connected_components retun value
-    """
-
-    mc_G = nx.Graph()
-    pr_G = nx.Graph()
-
-    for j in range(labels.shape[0]):
-
-        # Only True edges are added to mc graph
-        if labels[j] == 1:
-            mc_G.add_edge(edges[0, j], edges[1, j])
-
-        # Positive edges are added to pr graph
-        if preds[j] > cut:
-            pr_G.add_edge(edges[0, j], edges[1, j])
-
-    mc_tracks = sorted(nx.connected_components(mc_G), key=len, reverse=True)
-    pr_tracks = sorted(nx.connected_components(pr_G), key=len, reverse=True)
-
-    def filter_short_tracks(tracks):
-        return [track for track in tracks if len(track) >= min_mc_hits]
-
-    return filter_short_tracks(mc_tracks), filter_short_tracks(pr_tracks)
-
-
-def compute_foms_from_tracks(mc_tracks, pr_tracks, min_hits=3):
-    """Compute figures of merit from tracks.
-
-    A mc track is found when at least 4 hits in it are present in at least one connected
-    component in the output graph. These tracks are called matched.
-
-    Args:
-      mc_tracks: networkx.connected_components retun value
-      pr_tracks: networkx.connected_components retun value
-
-    Returns:
-      finding_efficiency: A `float` fraction of found mc tracks
-      hit_efficiency: A `float` fraction of found hits from pr tracks
-      hit_purity: A `float` fraction of matched hits to all all hits in found tracks
-    """
-
-    finding_efficiency = 0
-    hit_purity = 0
-    hit_efficiency = 0
-    n_matched = 0
-
-    for i_mc, mc_track in enumerate(mc_tracks):
-        for i_pr, pr_track in enumerate(pr_tracks):
-            matched_hits = float(len(mc_track & pr_track))
-            if matched_hits >= min_hits:
-                n_matched += 1
-                hit_purity += matched_hits / len(pr_track)
-                hit_efficiency += matched_hits / len(mc_track)
-                break
-
-    hit_purity = hit_purity / n_matched
-    hit_efficiency = hit_efficiency / n_matched
-    finding_efficiency = float(n_matched) / len(mc_tracks)
-
-    return finding_efficiency, hit_efficiency, hit_purity
-
-
-def compute_tracks_from_gnn_dbscan(edges, preds, labels, n_hits, eps=0.3, min_samples=1, min_mc_hits=3):
-
-    MC = dok_matrix((n_hits, n_hits), dtype=np.float32)
-    PR = dok_matrix((n_hits, n_hits), dtype=np.float32)
-
-    # Add segments to sparse pairwise distance
-    for j in range(labels.shape[0]):
-        hit_snd = edges[0, j]
-        hit_rec = edges[1, j]
-        pred = preds[j]
-        label = labels[j]
-        if label == 1:
-            MC[hit_snd, hit_rec] = label * 0.5 * eps
-            MC[hit_rec, hit_snd] = label * 0.5 * eps
-        if pred > 0.1:
-            PR[hit_snd, hit_rec] = 1 - pred
-            PR[hit_rec, hit_snd] = 1 - pred
-
-    db_pr = DBSCAN(eps=eps, min_samples=min_samples, metric='precomputed').fit(PR.tocsr())
-    db_mc = DBSCAN(eps=eps, min_samples=min_samples, metric='precomputed').fit(MC.tocsr())
-
-    def get_tracks(labels):
-        tracks = {}
-        for n, label in enumerate(labels):
-            if label in tracks:
-                tracks[label].append(n)
-            else:
-                tracks[label] = [n]
-        return [set(track) for track in tracks.values() if len(track) >= min_mc_hits]
-
-    return get_tracks(db_mc.labels_), get_tracks(db_pr.labels_)
