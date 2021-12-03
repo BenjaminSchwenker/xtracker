@@ -13,8 +13,8 @@
 Performs training of xtracker neural net using prepared training samples
 defined in train config file.
 
-Usage: python3 train.py  configs/train_belle2.yaml
-Usage: python3 train.py  configs/train_toytracker.yaml
+Usage: python3 train.py  configs/belle2_vtx_cdc.yaml
+Usage: python3 train.py  configs/toytracker.yaml
 """
 
 
@@ -38,9 +38,9 @@ from xtracker.utils import dotdict
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser('main.py')
+    parser = argparse.ArgumentParser('train.py')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/train_tracker_toy_belle2_lowpt_big.yaml')
+    add_arg('config', nargs='?', default='configs/belle2_vtx_cdc.yaml')
     return parser.parse_args()
 
 
@@ -80,14 +80,15 @@ def main():
     args.data = dotdict(args.data)
 
     # Reproducible training [NOTE, doesn't full work on GPU]
-    torch.manual_seed(args.seed)
+    seed = config['global']['rndseed']
+    torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    np.random.seed(args.seed + 10)
-    random.seed(args.seed)
+    np.random.seed(seed + 10)
+    random.seed(seed)
 
     # Data loaders for training and validation
-    train_data_loader, valid_data_loader = get_data_loaders(**args.data)
+    train_data_loader, valid_data_loader = get_data_loaders(**args.data, input_dir=config['global']['graph_dir'])
     logging.info('Loaded %g training samples', len(train_data_loader.dataset))
     if valid_data_loader is not None:
         logging.info('Loaded %g validation samples', len(valid_data_loader.dataset))

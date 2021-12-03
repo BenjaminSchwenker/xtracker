@@ -14,14 +14,14 @@
 Data preparation script for training of xtracker.
 
 Prepares hitgraphs from simulated events for training. Can be used for
-Belle II MC and simplified toytracker.
+Belle II MC and a simplified detector called toytracker.
 
 Usage:
-python3 prepare_graphs.py configs/prep_graphs_belle2.yaml
+python3 prepare_graphs.py configs/belle2_vtx_cdc.yaml
 
 or
 
-python3 prepare_graphs.py configs/prep_graphs_toytracker.yaml
+python3 prepare_graphs.py configs/toytracker.yaml
 """
 
 import os
@@ -45,7 +45,7 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('prepare_graphs.py')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/prep_graphs_belle2.yaml')
+    add_arg('config', nargs='?', default='configs/belle2_vtx_cdc.yaml')
     add_arg('--n-workers', type=int, default=1)
     add_arg('--n-tasks', type=int, default=1)
     add_arg('-v', '--verbose', action='store_true')
@@ -55,7 +55,7 @@ def parse_args():
 def process_event(
     evtid, output_dir, pt_min, n_eta_sections, n_phi_sections,
     eta_range, phi_range, phi_slope_max, z0_max, input_dir, segment_type, n_det_layers,
-    feature_scale_r, feature_scale_phi, feature_scale_z
+    feature_scale_r, feature_scale_phi, feature_scale_z, feature_scale_t,
 ):
 
     # Read the data
@@ -131,13 +131,13 @@ def main():
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Prepare output
-    input_dir = os.path.expandvars(config['input_dir'])
-    output_dir = os.path.expandvars(config['output_dir'])
+    input_dir = os.path.expandvars(config['global']['event_dir'])
+    output_dir = os.path.expandvars(config['global']['graph_dir'])
     os.makedirs(output_dir, exist_ok=True)
     logging.info('Writing outputs to ' + output_dir)
 
     # We generate events on the fly, just need to know how many
-    events = range(config['n_events'])
+    events = range(config['global']['n_events'])
 
     # Process input files with a worker pool
     with mp.Pool(processes=args.n_workers) as pool:

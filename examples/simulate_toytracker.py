@@ -17,10 +17,9 @@ The simulated detector is a 6 layer pixel vertex detector. The sensitive volumes
 are are six thin cylindrical silicon layers. It is a toy simulation neglecting material
 and detector resolution effects.
 
-Usage: python3 simulate_toytracker.py  configs/sim_toytracker.yaml
+Usage: python3 simulate_toytracker.py  configs/toytracker.yaml
 """
 
-# System
 import os
 import argparse
 import logging
@@ -38,11 +37,10 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('simulate_toytracker.py')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/configs/sim_toytracker.yaml')
+    add_arg('config', nargs='?', default='configs/toytracker.yaml')
     add_arg('--n-workers', type=int, default=1)
     add_arg('--n-tasks', type=int, default=1)
-    add_arg('--outputdir', type=str, default='./')
-    add_arg('--rndseed', type=int, default=12345)
+    add_arg('-v', '--verbose', action='store_true')
     return parser.parse_args()
 
 
@@ -51,7 +49,7 @@ def process_event(
     theta_min, theta_max, p_min, p_max, output_dir,
 ):
     # Simulate the data
-    logging.info('Event %i, generate data' % evtid)
+    logging.info('Event %i, generate event ' % evtid)
 
     num_tracks = np.random.randint(num_tracks_min, num_tracks_max)
     num_noise = np.random.randint(num_noise_min, num_noise_max)
@@ -75,17 +73,23 @@ def main():
     # Parse the command line
     args = parse_args()
 
+    # Setup logging
+    log_format = '%(asctime)s %(levelname)s %(message)s'
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=log_level, format=log_format)
+    logging.info('Initializing')
+
     # Load configuration
     with open(args.config) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Prepare output
-    output_dir = os.path.expandvars(config['output_dir'])
+    output_dir = os.path.expandvars(config['global']['event_dir'])
     os.makedirs(output_dir, exist_ok=True)
     logging.info('Writing outputs to ' + output_dir)
 
     # We generate events on the fly, just need to know how many
-    events = range(config['n_events'])
+    events = range(config['global']['n_events'])
 
     # Process input files with a worker pool
     with mp.Pool(processes=args.n_workers) as pool:
