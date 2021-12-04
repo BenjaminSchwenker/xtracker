@@ -61,13 +61,13 @@ def process_event(
     # Read the data
     logging.info('Event %i, read event' % evtid)
 
-    if not Path(input_dir + '/graph_id_{}.h5'.format(evtid)).is_file():
+    if not Path(input_dir + '/event_id_{}.h5'.format(evtid)).is_file():
         logging.info('Event %i not found.' % evtid)
         return
 
-    hits = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid)), 'hits')
-    truth = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid)), 'truth')
-    particles = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid)), 'particles')
+    hits = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'hits')
+    truth = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'truth')
+    particles = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'particles')
 
     # Read the data
     logging.info('Event %i, generate graph' % evtid)
@@ -102,9 +102,9 @@ def process_event(
 
     # Write these graphs to the output directory
     try:
-        filenames = [os.path.join(output_dir, 'event_%04i_g%03i' % (evtid, i))
+        filenames = [os.path.join(output_dir, 'graph_%04i_g%03i' % (evtid, i))
                      for i in range(len(graphs))]
-        filenames_ID = [os.path.join(output_dir, 'event_%04i_g%03i_ID' % (evtid, i))
+        filenames_ID = [os.path.join(output_dir, 'graph_%04i_g%03i_ID' % (evtid, i))
                         for i in range(len(graphs))]
     except Exception as e:
         logging.info(e)

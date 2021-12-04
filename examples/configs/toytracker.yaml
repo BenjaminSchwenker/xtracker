@@ -6,7 +6,6 @@ global:
     graph_dir: ${HEP_DATA}/hitgraphs_toytracker         # Path to hit graphs 
     saved_model: ${HEP_DATA}/saved_models/toytracker    # Path to saved model
 
-
 # Event simulation configuration
 simulation:
     p_min: 0.02      # GeV 

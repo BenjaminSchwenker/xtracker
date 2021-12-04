@@ -34,6 +34,8 @@ from simulation import add_simulation
 from xtracker.basf2_modules.event_collector_module import TrackingEventCollector
 from vtx import add_vtx_reconstruction, get_upgrade_globaltag
 
+# Many scripts import these functions from `tracking`, so leave these imports here
+from tracking.path_utils import add_hit_preparation_modules
 
 def parse_args():
     """Parse command line arguments."""
@@ -158,29 +160,33 @@ def main():
     # Detector Simulation:
     add_simulation(path=path, useVTX=True,)
 
-    # needed for fitting
-    path.add_module('SetupGenfitExtrapolation')
+    # Needed for track fitting
+    path.add_module('SetupGenfitExtrapolation', energyLossBrems=False, noiseBrems=False)
 
-    add_vtx_reconstruction(path=path)
+    # Prepare hits for tracking
+    add_hit_preparation_modules(
+        path=path, 
+        components=None, 
+        useVTX=True, 
+        useVTXClusterShapes=True
+    )
 
     # Setting up the MC based track finder.
     mctrackfinder = b2.register_module('TrackFinderMCTruthRecoTracks')
-
     for param, value in config['simulation']['mctrackfinder'].items():
         mctrackfinder.param(param, value)
-
     path.add_module(mctrackfinder)
-
-    # include a track fit into the chain (sequence adopted from the tracking scripts)
-    # Correct time seed: Do I need it for VXD only tracks ????
+     
+    # Include a track fit into the chain (sequence adopted from the tracking scripts)
     path.add_module("IPTrackTimeEstimator", recoTracksStoreArrayName="MCRecoTracks", useFittedInformation=False)
 
-    # track fitting
+    # Track fitting
     daffitter = b2.register_module("DAFRecoFitter")
     daffitter.param('recoTracksStoreArrayName', "MCRecoTracks")
     path.add_module(daffitter)
 
-    event_collector = TrackingEventCollector(output_dir_name=output_dir)
+    # Building tracking events for training xtracker 
+    event_collector = TrackingEventCollector(output_dir_name=output_dir, **config['simulation']['event_collector'])
     path.add_module(event_collector)
 
     b2.print_path(path)
