@@ -22,36 +22,73 @@ def calc_dphi(phi1, phi2):
 
 
 def calc_eta(r, z):
+    """Compute rapidity eta from radius and z position of a point"""
     theta = np.arctan2(r, z)
     return -1. * np.log(np.tan(theta / 2.))
 
 
-def select_segments(hits1, hits2, phi_slope_max, z0_max):
+def create_segments_mc(hits1, hits2):
     """
-    Construct a list of selected segments from the pairings
-    between hits1 and hits2, filtered with the specified
-    phi slope and z0 criteria.
+    Construct a list of segments from the pairings between hits1 and
+    hits2 along a the flight time sorted path of a mc particle.
 
     Returns: pd DataFrame of (index_1, index_2), corresponding to the
     DataFrame hit label-indices in hits1 and hits2, respectively.
     """
+
+    # Combine sorted hits into a hit_pairs data frame
+    keys = ['evtid', 'r', 'phi', 'z', 'layer']
+    hit_pairs = hits1[keys].reset_index().merge(
+        hits2[keys].reset_index(), left_index=True, right_index=True, suffixes=('_1', '_2'))
+
+    return hit_pairs
+
+
+def create_segments(hits1, hits2):
+    """
+    Construct a list of raw (unfiltered) segments from the pairings
+    between hits1 and hits2.
+
+    Returns: pd DataFrame of (index_1, index_2), corresponding to the
+    DataFrame hit label-indices in hits1 and hits2, respectively.
+    """
+
     # Start with all possible pairs of hits
     keys = ['evtid', 'r', 'phi', 'z', 'layer']
     hit_pairs = hits1[keys].reset_index().merge(
         hits2[keys].reset_index(), on='evtid', suffixes=('_1', '_2'))
+
+    return hit_pairs
+
+
+def cut_on_segments(segments, phi_slope_max, z0_max, debug=False):
+    """
+    Cut on segments (hit pairs) by phi slope, z0 and other criteria.
+
+    For MC truth segments, any removed segments will reduce the hit efficiency
+    and will create clone tracks. For debugging, need to report number of
+    removed true segments.
+
+    Returns: pd DataFrame of (index_1, index_2), corresponding to the
+    DataFrame hit label-indices in hits1 and hits2, respectively.
+    """
+
     # Compute line through the points
-    dphi = calc_dphi(hit_pairs.phi_1, hit_pairs.phi_2)
-    dz = hit_pairs.z_2 - hit_pairs.z_1
-    dr = hit_pairs.r_2 - hit_pairs.r_1
+    dphi = calc_dphi(segments.phi_1, segments.phi_2)
+    dz = segments.z_2 - segments.z_1
+    dr = segments.r_2 - segments.r_1
     phi_slope = dphi / dr
-    z0 = hit_pairs.z_1 - hit_pairs.r_1 * dz / dr
+    z0 = segments.z_1 - segments.r_1 * dz / dr
 
     # We do not have good filter for same layer or ingoing edges
-    z0[hit_pairs.layer_1 >= hit_pairs.layer_2] = 0.0
-    phi_slope[hit_pairs.layer_1 == hit_pairs.layer_2] = 0.0
+    z0[segments.layer_1 >= segments.layer_2] = 0.0
+    phi_slope[segments.layer_1 == segments.layer_2] = 0.0
 
     # Compute squared 'distance' to exclude self loops
     dr2 = dz**2 + dr**2 + dphi**2
+
+    # Compute absolute delta in phi
+    dphi_abs = dphi.abs()
 
     # Filter segments according to criteria
     good_seg_mask = ((phi_slope > -phi_slope_max) &
@@ -61,7 +98,17 @@ def select_segments(hits1, hits2, phi_slope_max, z0_max):
                      (dr2 > 0)
                      )
 
-    return hit_pairs[['index_1', 'index_2']][good_seg_mask]
+    # Special mask for CDC segments
+    cdc_phi_mask = dphi_abs < 0.2
+    cdc_segments = (segments.layer_1 > 4) & (segments.layer_2 > 4)
+    cdc_phi_mask[~cdc_segments] = True
+    good_seg_mask = good_seg_mask & cdc_phi_mask
+
+    if debug and good_seg_mask.shape[0] - good_seg_mask.sum() > 0:
+        print('All segements: ', good_seg_mask.shape[0])
+        print('Removed segements: ', good_seg_mask.shape[0] - good_seg_mask.sum())
+
+    return segments[['index_1', 'index_2']][good_seg_mask]
 
 
 def make_graph(
@@ -81,7 +128,10 @@ def make_graph(
     feature_scale_r,
     feature_scale_phi,
     feature_scale_z,
+    feature_scale_t,
+    useMC=False,
 ):
+    """Returns a graph object and a hitID array computed from event data."""
 
     # Apply hit selection
     hits = select_hits(hits, truth, particles, pt_min=pt_min).assign(evtid=evtid)
@@ -95,16 +145,25 @@ def make_graph(
     feature_names = ['r', 'phi', 'z']
 
     # Scale hit coordinates
-    feature_scale = np.array([feature_scale_r, np.pi / n_phi_sections / feature_scale_phi, feature_scale_z])
+    feature_scales = np.array([feature_scale_r, np.pi / n_phi_sections / feature_scale_phi, feature_scale_z])
 
-    layer_pairs = form_layer_pairs(n_det_layers, segment_type)
+    if useMC:
+        # Construct the graph only from mc (truth) level data
+        graphs_all = [construct_graph_mc(
+            section_hits, truth,
+            feature_names=feature_names,
+            feature_scales=feature_scales
+        ) for section_hits in hits_sections]
 
-    # Construct the graph
-    graphs_all = [construct_graph(section_hits, layer_pairs=layer_pairs,
-                                  phi_slope_max=phi_slope_max, z0_max=z0_max,
-                                  feature_names=feature_names,
-                                  feature_scale=feature_scale)
-                  for section_hits in hits_sections]
+    else:
+        # Construct the graph only from reconstruction level data
+        graphs_all = [construct_graph(
+            section_hits, n_det_layers, segment_type,
+            phi_slope_max=phi_slope_max, z0_max=z0_max,
+            feature_names=feature_names,
+            feature_scales=feature_scales
+        ) for section_hits in hits_sections]
+
     graphs = [x[0] for x in graphs_all]
     IDs = [x[1] for x in graphs_all]
 
@@ -112,6 +171,8 @@ def make_graph(
 
 
 def construct_segments(hits, layer_pairs, phi_slope_max, z0_max):
+    """Returns DataFrame with filtered segments (hit pairs) for event."""
+
     # Loop over layer pairs and construct segments
     layer_groups = hits.groupby('layer')
     segments = []
@@ -125,7 +186,11 @@ def construct_segments(hits, layer_pairs, phi_slope_max, z0_max):
         except KeyError as e:
             continue
         # Construct the segments
-        segments.append(select_segments(hits1, hits2, phi_slope_max, z0_max))
+        raw_segments = create_segments(hits1, hits2)
+
+        # Cut on good segments and append them
+        segments.append(cut_on_segments(raw_segments, phi_slope_max=phi_slope_max, z0_max=z0_max))
+
     # Combine segments from all layer pairs
     if len(segments) == 0:
         return pd.DataFrame(columns=['index_1', 'index_2'])
@@ -133,17 +198,79 @@ def construct_segments(hits, layer_pairs, phi_slope_max, z0_max):
         return pd.concat(segments)
 
 
-def construct_graph(hits, layer_pairs,
+def construct_segments_mc(hits, truth, phi_slope_max=np.inf, z0_max=np.inf):
+    """Returns DataFrame with filtered segments (hit pairs) for event using MC truth labels."""
+
+    # Only connect hits from mcparticles
+    mask = truth['particle_id'] >= 0
+
+    # Group hits from same mcparticle
+    grouped = truth[mask].groupby("particle_id")
+
+    segments = []
+    for i_part in range(grouped.ngroups):
+        pairs = grouped.get_group(i_part)[['hit_id']].astype(np.float)
+        pairs.rename(columns={pairs.columns[0]: "index_0"}, inplace=True)
+        pairs["index_1"] = pairs["index_0"].shift(-1)
+        pairs = pairs.iloc[:-1]
+        pairs = pairs.astype(np.int64)
+
+        hits1 = hits.iloc[pairs['index_0']]
+        hits2 = hits.iloc[pairs['index_1']]
+
+        # Construct the segments
+        raw_segments = create_segments_mc(hits1, hits2)
+
+        # Cut on good segments and append them
+        segments.append(cut_on_segments(raw_segments, phi_slope_max=phi_slope_max, z0_max=z0_max, debug=True))
+
+    # Combine segments from all layer pairs
+    if len(segments) == 0:
+        return pd.DataFrame(columns=['index_1', 'index_2'])
+    else:
+        return pd.concat(segments)
+
+
+def construct_graph(hits, n_det_layers, segment_type,
                     phi_slope_max, z0_max,
-                    feature_names, feature_scale):
+                    feature_names, feature_scales):
     """Construct one graph (e.g. from one event)"""
 
+    # Construct layer pairs
+    layer_pairs = form_layer_pairs(n_det_layers, segment_type)
+
+    # Construct filtered segments
     segments = construct_segments(hits, layer_pairs, phi_slope_max, z0_max)
+
+    # Prepare the graph tuple with selected and scaled hit features
+    graph = prepare_graph_matrices(hits, segments, feature_names, feature_scales)
+
+    return graph
+
+
+def construct_graph_mc(hits, truth, feature_names, feature_scales):
+    """Construct one graph (e.g. from one event)
+
+    Produce a perfect graph only contain true edges and zero false edges.
+    It means the edge_index contains only true edges and the target edge
+    class is always 1.
+    """
+
+    # Construct mc segments
+    segments = construct_segments_mc(hits, truth)
+
+    # Prepare the graph tuple with selected and scaled hit features
+    graph = prepare_graph_matrices(hits, segments, feature_names, feature_scales)
+
+    return graph
+
+
+def prepare_graph_matrices(hits, segments, feature_names, feature_scales,):
 
     # Prepare the graph matrices
     n_hits = hits.shape[0]
     n_edges = segments.shape[0]
-    X = (hits[feature_names].values / feature_scale).astype(np.float32)
+    X = (hits[feature_names].values / feature_scales).astype(np.float32)
     P = (hits[['px', 'py', 'pz', 'q', 'nhits', 'particle_id']].values).astype(np.float32)
     Ri = np.zeros((n_hits, n_edges), dtype=np.uint8)
     Ro = np.zeros((n_hits, n_edges), dtype=np.uint8)
