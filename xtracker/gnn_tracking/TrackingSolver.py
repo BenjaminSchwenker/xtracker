@@ -14,7 +14,10 @@ from xtracker.gnn_tracking.TrackingLogic import Board
 class TrackingSolver():
     """
     This class solves the tracking game using the
-    underlying event.
+    underlying mc truth event.
+
+    It is used to create targets for training. It is also 
+    used for the mc truth tracking pipeline for debugging. 
     """
 
     def __init__(self, game):
@@ -37,7 +40,8 @@ class TrackingSolver():
 
     def predict(self, board):
         """
-        board: np array with board
+        Returns predicted policy array and score.
+        Note that policy array has one item more than segments on the board. THis item represents the stop move.
         """
 
         legal_moves = board.get_legal_moves()
@@ -73,3 +77,8 @@ class TrackingSolver():
             pi = pi / pi.sum()
 
         return pi, np.float32(v)
+
+    def process(self, board):
+        """Returns array with segment predictions and score"""
+        preds = np.copy(board.y)
+        return preds, 1.0
