@@ -16,8 +16,8 @@ class TrackingSolver():
     This class solves the tracking game using the
     underlying mc truth event.
 
-    It is used to create targets for training. It is also 
-    used for the mc truth tracking pipeline for debugging. 
+    It is used to create targets for training. It is also
+    used for the mc truth tracking pipeline for debugging.
     """
 
     def __init__(self, game):

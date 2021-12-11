@@ -4,7 +4,7 @@ global:
     rndseed: 12345                                      # Random seed 
     event_dir: ${HEP_DATA}/events_belle2_vtx_cdc        # Path to Simulated events
     graph_dir: ${HEP_DATA}/hitgraphs_belle2_vtx_cdc     # Path to hit graphs 
-    saved_model: ${HEP_DATA}/saved_models/vtx_cdc       # Path to saved model
+    saved_model: ${HEP_DATA}/saved_model_vtx_cdc        # Path to saved model
 
 
 # Event simulation configuration
@@ -30,8 +30,8 @@ simulation:
         UseSVDHits: False
         UsePXDHits: False
         UseVTXHits: True
-        OffsetVTX: 0
-        OffsetPXD: 0
+        OffsetVTX: -1
+        OffsetPXD: -1
         OffsetSVD: 0
         OffsetCDC: 5
 
@@ -39,31 +39,32 @@ simulation:
 selection:
     n_det_layers: 61
     pt_min: 0. # GeV
-    phi_slope_max: 0.2 #2.1
+    phi_slope_max: 0.2 
     z0_max: 100
     n_phi_sections: 1 
     n_eta_sections: 1 
     eta_range: [-5, 5]
     segment_type: all
-    feature_scale_r: 100 #15.0
+    feature_scale_r: 100 
     feature_scale_phi: 1.0
     feature_scale_z: 50.0
     feature_scale_t: 1.0
+    useMC: True
 
 
 # Training configuration
 training:
-    numIters: 180               # Number of training iterations 
-    numEps: 2                   # Number of new games to simulate during a new iteration.
+    numIters: 280               # Number of training iterations 
+    numEps: 50                   # Number of new games to simulate during a new iteration.
     maxlenOfQueue: 200000       # Number of new game examples (per iteration) to train the neural networks.
-    arenaCompare: 6             # Number of games to played in arena for network evaluation 
+    arenaCompare: 40             # Number of games to played in arena for network evaluation 
     tempThreshold: 5            # Unused
     supervised_training: True
     checkpoint: ./temp_vtx_cdc/
     load_model: False
     load_folder_file: !!python/tuple ['./temp_vtx_cdc/','best.pth.tar']
     numItersForTrainExamplesHistory: 2 
-    pre_scale_examples: 0.001 #0.01
+    pre_scale_examples: 0.003 #0.01
     pre_stop_example: 0.0 
 
 model: 
@@ -72,16 +73,17 @@ model:
     mid_steps: 4
     noise_sigma: 0.0  
     update_e: False 
+    useMC: True
 
 optimizer:
     name: Adam 
-    lr: 0.0005 
+    lr: 0.0001 
     #dropout: 0.3
     epochs: 1
     batch_size: 1
 
 data: 
     name: hitgraphs_sparse
-    n_train: 40
-    n_valid: 10
+    n_train: 4000
+    n_valid: 1000
     batch_size: 1  
