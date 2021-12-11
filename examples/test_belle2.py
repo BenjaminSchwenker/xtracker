@@ -15,7 +15,7 @@ Output fie can be displayed later with b2display tool.
 
 Usage: Set global tag and run
 export BELLE2_VTX_UPGRADE_GT=upgrade_2021-07-16_vtx_5layer
-basf2 test_belle2.py -n 10
+basf2 test_belle2.py -n 10 -- configs/belle2_vtx_cdc.yaml
 """
 
 import basf2 as b2
@@ -30,20 +30,16 @@ import ROOT as r
 import argparse
 import os
 import sys
+import yaml
 from xtracker.path_utils import add_vtx_track_finding_gnn, add_track_printer
 from vtx import add_vtx_reconstruction, get_upgrade_globaltag
-
-# Need to use default global tag prepended with upgrade GT
-b2.conditions.disable_globaltag_replay()
-b2.conditions.prepend_globaltag(get_upgrade_globaltag())
-
-# ---------------------------------------------------------------------------------------
 
 
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('test_belle2.py')
     add_arg = parser.add_argument
+    add_arg('config', nargs='?', default='configs/belle2_vtx_cdc.yaml')
     add_arg("--gen", default='bbar', help="Generator: 'gun', 'bbar'")
     return parser.parse_args()
 
@@ -51,8 +47,16 @@ def parse_args():
 def main():
     """Main function"""
 
+    # Need to use default global tag prepended with upgrade GT
+    b2.conditions.disable_globaltag_replay()
+    b2.conditions.prepend_globaltag(get_upgrade_globaltag())
+
     # Parse the command line
     args = parse_args()
+
+    # Load configuration
+    with open(args.config) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Create basf2 path
     path = b2.create_path()
@@ -98,13 +102,14 @@ def main():
     mctrackfinder.param("RecoTracksStoreArrayName", "MCRecoTracks")
     path.add_module(mctrackfinder)
 
-    # VTX standalone track finding
+    # Setting up the neural network based track finder
     add_vtx_track_finding_gnn(
         path=path,
-        components=["VTX"],
-        model_path="tracking/data/gnn_vtx",
-        n_det_layers=5,
         reco_tracks="RecoTracks",
+        model_path="tracking/data/gnn_vtx",
+        event_cuts=config['simulation']['event_collector'],
+        segment_cuts=config['selection'],
+        tracker_config=config['model'],
     )
 
     # track fitting

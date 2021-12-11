@@ -37,6 +37,7 @@ from vtx import add_vtx_reconstruction, get_upgrade_globaltag
 # Many scripts import these functions from `tracking`, so leave these imports here
 from tracking.path_utils import add_hit_preparation_modules
 
+
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('simulate_belle2.py')
@@ -165,18 +166,36 @@ def main():
 
     # Prepare hits for tracking
     add_hit_preparation_modules(
-        path=path, 
-        components=None, 
-        useVTX=True, 
+        path=path,
+        components=None,
+        useVTX=True,
         useVTXClusterShapes=True
     )
+
+    # Parts of CDC TF that may turn out to be usefull here
+    # Init the geometry for cdc tracking and the hits and cut low ADC hits
+    # path.add_module("TFCDC_WireHitPreparer",
+    #                wirePosition="aligned",
+    #                useSecondHits=False,
+    #                flightTimeEstimation="outwards",
+    #                filter="cuts_from_DB")
+
+    # Constructs clusters
+    # path.add_module("TFCDC_ClusterPreparer",
+    #                ClusterFilter="all",
+    #                ClusterFilterParameters={})
+
+    # Find segments within the clusters
+    # path.add_module("TFCDC_SegmentFinderFacetAutomaton")
+
+    ####
 
     # Setting up the MC based track finder.
     mctrackfinder = b2.register_module('TrackFinderMCTruthRecoTracks')
     for param, value in config['simulation']['mctrackfinder'].items():
         mctrackfinder.param(param, value)
     path.add_module(mctrackfinder)
-     
+
     # Include a track fit into the chain (sequence adopted from the tracking scripts)
     path.add_module("IPTrackTimeEstimator", recoTracksStoreArrayName="MCRecoTracks", useFittedInformation=False)
 
@@ -185,8 +204,8 @@ def main():
     daffitter.param('recoTracksStoreArrayName', "MCRecoTracks")
     path.add_module(daffitter)
 
-    # Building tracking events for training xtracker 
-    event_collector = TrackingEventCollector(output_dir_name=output_dir, **config['simulation']['event_collector'])
+    # Building tracking events for training xtracker
+    event_collector = TrackingEventCollector(output_dir_name=output_dir, event_cuts=config['simulation']['event_collector'])
     path.add_module(event_collector)
 
     b2.print_path(path)

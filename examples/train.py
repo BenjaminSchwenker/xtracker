@@ -13,8 +13,12 @@
 Performs training of xtracker neural net using prepared training samples
 defined in train config file.
 
-Usage: python3 train.py  configs/belle2_vtx_cdc.yaml
-Usage: python3 train.py  configs/toytracker.yaml
+Usage:
+python3 train.py  configs/belle2_vtx_cdc.yaml
+
+or
+
+python3 train.py  configs/toytracker.yaml
 """
 
 

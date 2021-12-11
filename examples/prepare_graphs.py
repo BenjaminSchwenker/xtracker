@@ -36,9 +36,7 @@ import numpy as np
 import pandas as pd
 
 from xtracker.datasets.graph import Graph, save_graphs
-from xtracker.graph_creation import (
-    calc_dphi, calc_eta, select_segments, construct_graph, select_hits, split_detector_sections, form_layer_pairs
-)
+from xtracker.graph_creation import make_graph
 
 
 def parse_args():
@@ -55,7 +53,7 @@ def parse_args():
 def process_event(
     evtid, output_dir, pt_min, n_eta_sections, n_phi_sections,
     eta_range, phi_range, phi_slope_max, z0_max, input_dir, segment_type, n_det_layers,
-    feature_scale_r, feature_scale_phi, feature_scale_z, feature_scale_t,
+    feature_scale_r, feature_scale_phi, feature_scale_z, feature_scale_t, useMC,
 ):
 
     # Read the data
@@ -72,33 +70,26 @@ def process_event(
     # Read the data
     logging.info('Event %i, generate graph' % evtid)
 
-    # Apply hit selection
-    logging.info('Event %i, selecting hits' % evtid)
-    hits = select_hits(hits, truth, particles, pt_min=pt_min).assign(evtid=evtid)
-
-    # Divide detector into sections
-    phi_edges = np.linspace(*phi_range, num=n_phi_sections + 1)
-    eta_edges = np.linspace(*eta_range, num=n_eta_sections + 1)
-    hits_sections = split_detector_sections(hits, phi_edges, eta_edges)
-
-    # Construct layer pairs
-    layer_pairs = form_layer_pairs(n_det_layers, segment_type)
-
-    # Graph features and scale
-    feature_names = ['r', 'phi', 'z']
-
-    # Scale hit coordinates
-    feature_scale = np.array([feature_scale_r, np.pi / n_phi_sections / feature_scale_phi, feature_scale_z])
-
-    # Construct the graph
-    logging.info('Event %i, constructing graphs' % evtid)
-    graphs_all = [construct_graph(section_hits, layer_pairs=layer_pairs,
-                                  phi_slope_max=phi_slope_max, z0_max=z0_max,
-                                  feature_names=feature_names,
-                                  feature_scale=feature_scale)
-                  for section_hits in hits_sections]
-    graphs = [x[0] for x in graphs_all]
-    IDs = [x[1] for x in graphs_all]
+    graphs, IDs = make_graph(
+        hits,
+        truth,
+        particles,
+        evtid,
+        n_det_layers,
+        pt_min,
+        phi_range,
+        n_phi_sections,
+        eta_range,
+        n_eta_sections,
+        segment_type,
+        z0_max,
+        phi_slope_max,
+        feature_scale_r,
+        feature_scale_phi,
+        feature_scale_z,
+        feature_scale_t,
+        useMC=useMC,
+    )
 
     # Write these graphs to the output directory
     try:
