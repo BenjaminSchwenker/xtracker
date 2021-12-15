@@ -27,6 +27,7 @@ python3 prepare_graphs.py configs/toytracker.yaml
 import os
 import argparse
 import logging
+import shutil
 from pathlib import Path
 import multiprocessing as mp
 from functools import partial
@@ -124,6 +125,7 @@ def main():
     # Prepare output
     input_dir = os.path.expandvars(config['global']['event_dir'])
     output_dir = os.path.expandvars(config['global']['graph_dir'])
+    shutil.rmtree(output_dir, ignore_errors=True)
     os.makedirs(output_dir, exist_ok=True)
     logging.info('Writing outputs to ' + output_dir)
 

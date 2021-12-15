@@ -1,41 +1,38 @@
 # Global parameters 
 global:
-    n_events: 50                                        # Number of events to simulate 
+    n_events: 20 #00                                      # Number of events to simulate 
     rndseed: 12345                                      # Random seed 
     event_dir: ${HEP_DATA}/events_belle2_vtx_cdc        # Path to Simulated events
     graph_dir: ${HEP_DATA}/hitgraphs_belle2_vtx_cdc     # Path to hit graphs 
     saved_model: ${HEP_DATA}/saved_model_vtx_cdc        # Path to saved model
 
 
-# Event simulation configuration
-simulation:
-
-    # basf2 MC trackfinder params 
-    mctrackfinder:
-        UseCDCHits: True
-        UseSVDHits: False
-        UsePXDHits: False
-        UseVTXHits: True
-        WhichParticles: ['VTX', 'CDC'] # ['primary']  
-        UseNLoops:  1.0  # 0.5
-        discardAuxiliaryHits: True
-        UseSecondCDCHits: False
-        Smearing: False
-        MinimalNDF: 6
-        RecoTracksStoreArrayName: MCRecoTracks
+# basf2 MC trackfinder params 
+mctrackfinder:
+    UseCDCHits: True
+    UseSVDHits: False
+    UsePXDHits: False
+    UseVTXHits: True
+    WhichParticles: ['VTX', 'CDC'] # ['primary']  
+    UseNLoops:  1.0  # 0.5
+    discardAuxiliaryHits: True
+    UseSecondCDCHits: False
+    Smearing: False
+    MinimalNDF: 6
+    RecoTracksStoreArrayName: MCRecoTracks
         
-    # basf2 TrackingEventCollector params
-    event_collector: 
-        UseCDCHits: True
-        UseSVDHits: False
-        UsePXDHits: False
-        UseVTXHits: True
-        OffsetVTX: -1
-        OffsetPXD: -1
-        OffsetSVD: 0
-        OffsetCDC: 5
+# Event data selection cuts 
+event_cuts: 
+    UseCDCHits: True
+    UseSVDHits: False
+    UsePXDHits: False
+    UseVTXHits: True
+    OffsetVTX: -1
+    OffsetPXD: -1
+    OffsetSVD: 0
+    OffsetCDC: 5
 
-# Graph building configuration
+# Hit graph building configuration
 selection:
     n_det_layers: 61
     pt_min: 0. # GeV
