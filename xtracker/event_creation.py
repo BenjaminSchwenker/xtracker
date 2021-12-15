@@ -9,6 +9,8 @@
 import numpy as np
 import pandas as pd
 import math
+import collections
+
 from ROOT import Belle2
 from ROOT import TVector3
 
@@ -175,7 +177,11 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
         particles['q'].append(charge)
         particles['nhits'].append(nhits)
 
-        last_phi = np.nan
+        # Buffer to keep previous two cdc sim hits
+        cdcHitBuffer = collections.deque(maxlen=2)
+        last_valid = False
+        last_track_pos = np.nan
+        last_track_mom = np.nan
 
         # Loop over all hits
         for hit_info in mcTrackCand.getRelationsWith("RecoHitInformations"):
@@ -188,8 +194,7 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
 
                 simHit = hit.getRelated('VTXTrueHits')
                 if not simHit:
-                    print("Skipping VTXCluster without related VTXTrueHit.")
-                    print("This should not happen")
+                    print("Skipping VTXCluster without related VTXTrueHit. This should not happen.")
                     continue
 
                 tof = simHit.getGlobalTime()
@@ -228,26 +233,39 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
 
                 simHit = hit.getRelated('CDCSimHits')
                 if not simHit:
-                    print("Skipping CDCHit without related CDCSimHit from track.")
-                    print("This should not happen")
+                    print("Skipping CDCHit without related CDCSimHit from track. This should not happen.")
                     continue
 
                 tof = simHit.getFlightTime()
 
                 delta = tof - time
-                if delta < 0:
-                    print('Skipping CDC hit from track because negative delta time of flight: layer={} tof={}'.format(layer, tof))
+                if delta < -0.01:
+                    print("""Skipping CDC hit from track because too negative delta time
+                        of flight: layer={} delta_tof={}""".format(layer, delta)
+                          )
                     continue
+
+                if delta > 1:
+                    print('Skipping all remaining hits because delta tof is very big: delta={}>1ns'.format(delta))
+                    break
 
                 simHitPos = simHit.getPosTrack()
-                simMom = simHit.getMomentum()
+                simHitMom = simHit.getMomentum()
 
-                phi = np.arctan2(simHitPos.Y(), simHitPos.X())
-                dphi = calc_dphi(last_phi, phi)
-                if dphi > 0.2:
-                    # In some events, this happens very often. logs could be long.
-                    # print("Skipping CDC hit from track because of too large delta phi: layer={} dphi={}".format(layer, dphi))
-                    continue
+                if len(cdcHitBuffer) > 1:
+                    d1 = simHitPos - cdcHitBuffer[-1]
+                    d2 = cdcHitBuffer[-1] - cdcHitBuffer[-2]
+
+                    cosTheta = d1.Dot(d2) / d2.Mag() / d1.Mag()
+                    if cosTheta < 0 and d1.Mag() > 0.1:
+                        print("""Skipping CDC hit from track because successive simhit momenta
+                            have negative cosTheta={}""".format(cosTheta)
+                              )
+                        continue
+
+                    if d1.Mag() > 20:
+                        print('Skipping all remaining hits because very long step length={}>20cm'.format(d1.Mag()))
+                        break
 
                 wirePosF = cdcGeoHelper.wireForwardPosition(hit.getICLayer(), hit.getIWire(), 0)
                 wirePosB = cdcGeoHelper.wireBackwardPosition(hit.getICLayer(), hit.getIWire(), 0)
@@ -272,7 +290,11 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
                 truth['particle_id'].append(i)
                 truth['weight'].append(0)
 
-                last_phi = phi
+                cdcHitBuffer.append(simHitPos)
+                last_valid = True
+                last_track_pos = simHitPos
+                last_track_mom = simHitMom
+
                 time = tof
                 hit_id += 1
 
