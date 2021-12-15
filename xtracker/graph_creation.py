@@ -91,7 +91,7 @@ def cut_on_segments(segments, phi_slope_max, z0_max, debug=False):
 
     # Hits should differ in at least one attribute to avoid self loops
     good_seg_mask = (
-        (layer_diff < 4) &
+        # (layer_diff < 4) &
         (dr2 > 0)
     )
 
@@ -304,8 +304,8 @@ def construct_segments_mc(hits, truth, phi_slope_max=np.inf, z0_max=np.inf):
     grouped = truth[mask].groupby("particle_id")
 
     segments = []
-    for i_part in range(grouped.ngroups):
-        pairs = grouped.get_group(i_part)[['hit_id']].astype(np.float)
+    for name, group in grouped:
+        pairs = group[['hit_id']].astype(np.float)
         pairs.rename(columns={pairs.columns[0]: "index_0"}, inplace=True)
         pairs["index_1"] = pairs["index_0"].shift(-1)
         pairs = pairs.iloc[:-1]
