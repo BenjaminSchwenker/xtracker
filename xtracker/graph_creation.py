@@ -73,42 +73,138 @@ def cut_on_segments(segments, phi_slope_max, z0_max, debug=False):
     DataFrame hit label-indices in hits1 and hits2, respectively.
     """
 
-    # Compute line through the points
     dphi = calc_dphi(segments.phi_1, segments.phi_2)
     dz = segments.z_2 - segments.z_1
     dr = segments.r_2 - segments.r_1
-    phi_slope = dphi / dr
-    z0 = segments.z_1 - segments.r_1 * dz / dr
-
-    # We do not have good filter for same layer or ingoing edges
-    z0[segments.layer_1 >= segments.layer_2] = 0.0
-    phi_slope[segments.layer_1 == segments.layer_2] = 0.0
-
-    # Compute squared 'distance' to exclude self loops
     dr2 = dz**2 + dr**2 + dphi**2
-
-    # Compute absolute delta in phi
     dphi_abs = dphi.abs()
 
-    # Filter segments according to criteria
-    good_seg_mask = ((phi_slope > -phi_slope_max) &
-                     (phi_slope < phi_slope_max) &
-                     (z0 > -z0_max) &
-                     (z0 < z0_max) &
-                     (dr2 > 0)
-                     )
+    phi_slope = dphi / dr
+    phi_slope[segments.layer_1 == segments.layer_2] = 0.0
 
-    # Special mask for CDC segments
-    cdc_phi_mask = dphi_abs < 0.2
-    cdc_segments = (segments.layer_1 > 4) & (segments.layer_2 > 4)
-    cdc_phi_mask[~cdc_segments] = True
-    good_seg_mask = good_seg_mask & cdc_phi_mask
+    z0 = segments.z_1 - segments.r_1 * dz / dr
+    z0[segments.layer_1 >= segments.layer_2] = 0.0
 
+    layer_diff = (segments.layer_1 - segments.layer_2).abs()
+
+    # 0) Apply global cuts on segments, not subdetector specific
+
+    # Hits should differ in at least one attribute to avoid self loops
+    good_seg_mask = (
+        (layer_diff < 4) &
+        (dr2 > 0)
+    )
+
+    # 1) Apply filters that are specific to segments between vertex layers
+    vxd_segments = (segments.layer_1 < 5) & (segments.layer_2 < 5)
+
+    vxd_mask = (
+        (phi_slope > -phi_slope_max) &
+        (phi_slope < phi_slope_max) &
+        (z0 > -z0_max) &
+        (z0 < z0_max)
+    )
+    vxd_mask[~vxd_segments] = True
+    good_seg_mask = good_seg_mask & vxd_mask
+
+    # 2) Apply filters that are specific to segments between cdc layers
+    cdc_segments = (segments.layer_1 >= 5) & (segments.layer_2 >= 5)
+    cdc_mask = (
+        (dphi_abs < 0.2)
+    )
+
+    cdc_mask[~cdc_segments] = True
+    good_seg_mask = good_seg_mask & cdc_mask
+
+    # 3) Apply filters that are specific to segments cdc and vtx
+    vtx_cdc_segments = (
+        ((segments.layer_1 <= 4) & (segments.layer_2 >= 5)) | ((segments.layer_1 >= 5) & (segments.layer_2 <= 4))
+    )
+
+    vtx_cdc_mask = (
+        (phi_slope > -phi_slope_max) &
+        (phi_slope < phi_slope_max)
+    )
+
+    vtx_cdc_mask[~vtx_cdc_segments] = True
+    good_seg_mask = good_seg_mask & vtx_cdc_mask
+
+    # add some reporting in debug mode
+    debug = False
     if debug and good_seg_mask.shape[0] - good_seg_mask.sum() > 0:
         print('All segements: ', good_seg_mask.shape[0])
         print('Removed segements: ', good_seg_mask.shape[0] - good_seg_mask.sum())
 
+        i = np.random.randint(100)
+
+        draw_sample_xy(segments, good_seg_mask, i, figsize=(9, 9))
+        draw_sample_rz(segments, good_seg_mask, i, figsize=(9, 9))
+
     return segments[['index_1', 'index_2']][good_seg_mask]
+
+
+def draw_sample_xy(segments, good_segments, i, figsize=(9, 9)):
+
+    import matplotlib.pyplot as plt
+
+    x_1 = segments.r_1 * np.cos(segments.phi_1)
+    x_2 = segments.r_2 * np.cos(segments.phi_2)
+
+    y_1 = segments.r_1 * np.sin(segments.phi_1)
+    y_2 = segments.r_2 * np.sin(segments.phi_2)
+
+    fig, ax0 = plt.subplots(figsize=figsize)
+
+    # Draw the hits
+    ax0.scatter(x_1, y_1, s=2, c='k')
+    ax0.scatter(x_2, y_2, s=2, c='k')
+
+    # Draw the segments
+    for iseg in range(len(segments)):
+
+        xp = np.array([x_1[iseg], x_2[iseg]])
+        yp = np.array([y_1[iseg], y_2[iseg]])
+
+        # Only draw true hit hitgraph
+
+        if good_segments[iseg]:
+            ax0.plot(xp, yp, '-', c='g')
+        else:
+            ax0.plot(xp, yp, '--', c='b')
+
+    plt.savefig("/home/benjamin/Desktop/gen_study/{}_xy.png".format(i))
+
+
+def draw_sample_rz(segments, good_segments, i, figsize=(9, 9)):
+
+    import matplotlib.pyplot as plt
+
+    y_1 = segments.r_1
+    y_2 = segments.r_2
+
+    x_1 = segments.z_1
+    x_2 = segments.z_2
+
+    fig, ax0 = plt.subplots(figsize=figsize)
+
+    # Draw the hits
+    ax0.scatter(x_1, y_1, s=2, c='k')
+    ax0.scatter(x_2, y_2, s=2, c='k')
+
+    # Draw the segments
+    for iseg in range(len(segments)):
+
+        xp = np.array([x_1[iseg], x_2[iseg]])
+        yp = np.array([y_1[iseg], y_2[iseg]])
+
+        # Only draw true hit hitgraph
+
+        if good_segments[iseg]:
+            ax0.plot(xp, yp, '-', c='g')
+        else:
+            ax0.plot(xp, yp, '--', c='b')
+
+    plt.savefig("/home/benjamin/Desktop/gen_study/{}_rz.png".format(i))
 
 
 def make_graph(
@@ -239,6 +335,12 @@ def construct_graph(hits, n_det_layers, segment_type,
     # Construct layer pairs
     layer_pairs = form_layer_pairs(n_det_layers, segment_type)
 
+    skip2_pairs = form_skip_layer_pairs(first_layer_id=4, last_layer_id=60, skip=2, segment_type='all')
+    layer_pairs = np.concatenate((layer_pairs, skip2_pairs), axis=0)
+
+    skip3_pairs = form_skip_layer_pairs(first_layer_id=4, last_layer_id=60, skip=3, segment_type='all')
+    layer_pairs = np.concatenate((layer_pairs, skip3_pairs), axis=0)
+
     # Construct filtered segments
     segments = construct_segments(hits, layer_pairs, phi_slope_max, z0_max)
 
@@ -344,6 +446,17 @@ def split_detector_sections(hits, phi_edges, eta_edges):
 
 
 def form_layer_pairs(n_det_layers, segment_type):
+    """
+    Constructs array of layer pairings.
+
+    The layers are enumerates starting at 0. The last layer has id n_det_layers-1.
+    Pairings can be done between same layer and adjecant layers. It can be configured
+    by segment_type:
+
+    'out': outgoing, layer_id difference is +1
+    'inout'; outgoing and ingoing, layer_id difference si  +/-1
+    'all': includes same layer pairs,  layer_id difference is  +/-1 or 0
+    """
 
     # Define adjacent layers
     layerIDs = np.arange(n_det_layers)
@@ -360,6 +473,35 @@ def form_layer_pairs(n_det_layers, segment_type):
         # This is needed for fully reconstructing loopers
         l_1 = np.concatenate((layerIDs[:-1], layerIDs[1:], layerIDs[:]), axis=None)
         l_2 = np.concatenate((layerIDs[1:], layerIDs[:-1], layerIDs[:]), axis=None)
+        layer_pairs = np.stack((l_1, l_2), axis=-1)
+
+    return layer_pairs
+
+
+def form_skip_layer_pairs(first_layer_id, last_layer_id, skip, segment_type):
+    """
+    Constructs array of layer pairings with option to skip layers.
+
+    The layer_id enumerates layers starting at 0. The first_layer_id and last_layer_id
+    are the innermost and outermost layers that should be included in parings.
+
+    The argument skip is a nonzero integer that defines how many layers are skipped in
+    a layer pair. The first pair is (first_layer_id, first_layer_id+skip)
+
+    Segment types are 'out' for outgoing pairs and 'all' for both
+    outgoing and ingoing pairs.
+    """
+
+    # Define adjacent layers
+    layerIDs = np.arange(first_layer_id, last_layer_id + 1)
+
+    if segment_type == 'out':
+        # Create only outgoing segments
+        layer_pairs = np.stack([layerIDs[:-skip:1], layerIDs[skip::1]], axis=1)
+    else:
+        # Create ingoing and outgoing segments
+        l_1 = np.concatenate((layerIDs[:-skip:1], layerIDs[skip::1]), axis=None)
+        l_2 = np.concatenate((layerIDs[skip::1], layerIDs[:-skip:1]), axis=None)
         layer_pairs = np.stack((l_1, l_2), axis=-1)
 
     return layer_pairs
