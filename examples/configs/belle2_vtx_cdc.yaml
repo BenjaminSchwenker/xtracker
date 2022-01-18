@@ -1,6 +1,6 @@
 # Global parameters 
 global:
-    n_events: 20 #00                                      # Number of events to simulate 
+    n_events: 2000 #00                                   # Number of events to simulate 
     rndseed: 12345                                      # Random seed 
     event_dir: ${HEP_DATA}/events_belle2_vtx_cdc        # Path to Simulated events
     graph_dir: ${HEP_DATA}/hitgraphs_belle2_vtx_cdc     # Path to hit graphs 
@@ -14,9 +14,10 @@ mctrackfinder:
     UsePXDHits: False
     UseVTXHits: True
     WhichParticles: ['VTX', 'CDC'] # ['primary']  
-    UseNLoops:  1.0  # 0.5
+    UseNLoops:  1.0 
     discardAuxiliaryHits: True
     UseSecondCDCHits: False
+    #UseReassignedHits: False
     Smearing: False
     MinimalNDF: 6
     RecoTracksStoreArrayName: MCRecoTracks
@@ -46,13 +47,13 @@ selection:
     feature_scale_phi: 1.0
     feature_scale_z: 50.0
     feature_scale_t: 1.0
-    useMC: True
+    useMC: False 
 
 
 # Training configuration
 training:
     numIters: 280               # Number of training iterations 
-    numEps: 50                   # Number of new games to simulate during a new iteration.
+    numEps: 20                   # Number of new games to simulate during a new iteration.
     maxlenOfQueue: 200000       # Number of new game examples (per iteration) to train the neural networks.
     arenaCompare: 40             # Number of games to played in arena for network evaluation 
     tempThreshold: 5            # Unused
@@ -61,7 +62,7 @@ training:
     load_model: False
     load_folder_file: !!python/tuple ['./temp_vtx_cdc/','best.pth.tar']
     numItersForTrainExamplesHistory: 2 
-    pre_scale_examples: 0.003 #0.01
+    pre_scale_examples: 0.1 #0.01
     pre_stop_example: 0.0 
 
 model: 
@@ -70,7 +71,7 @@ model:
     mid_steps: 4
     noise_sigma: 0.0  
     update_e: False 
-    useMC: True
+    useMC: False
 
 optimizer:
     name: Adam 
@@ -81,6 +82,6 @@ optimizer:
 
 data: 
     name: hitgraphs_sparse
-    n_train: 4000
-    n_valid: 1000
+    n_train: 1800
+    n_valid: 200
     batch_size: 1  

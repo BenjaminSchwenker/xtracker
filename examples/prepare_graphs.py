@@ -17,7 +17,7 @@ Prepares hitgraphs from simulated events for training. Can be used for
 Belle II MC and a simplified detector called toytracker.
 
 Usage:
-python3 prepare_graphs.py configs/belle2_vtx_cdc.yaml
+python3 prepare_graphs.py configs/belle2_vtx_cdc.yaml --n-workers=3
 
 or
 
@@ -67,7 +67,7 @@ def process_event(
     hits = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'hits')
     truth = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'truth')
     particles = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'particles')
-
+    
     # Read the data
     logging.info('Event %i, generate graph' % evtid)
 

@@ -127,7 +127,7 @@ def main():
     }
 
     particlegun.param(param_pGun)
-    path.add_module(particlegun)
+    #path.add_module(particlegun)
 
     # Particle gun for low pt pions
     particlegun_2 = b2.register_module('ParticleGun')
@@ -137,7 +137,7 @@ def main():
         'pdgCodes': [211, -211],   # 211 = pion --> negatively charged!
         'nTracks': 1,
         'momentumGeneration': 'uniform',
-        'momentumParams': [0.1, 0.30],
+        'momentumParams': [0.4, 4.0],
         'vertexGeneration': 'uniform',
         'xVertexParams': [vertex_x - vertex_delta, vertex_x + vertex_delta],            # in cm...
         'yVertexParams': [vertex_y - vertex_delta, vertex_y + vertex_delta],
@@ -154,7 +154,7 @@ def main():
 
     evtgenInput = b2.register_module('EvtGenInput')
     evtgenInput.logging.log_level = b2.LogLevel.WARNING
-    path.add_module(evtgenInput)
+    #path.add_module(evtgenInput)
 
     # ---------------------------------------------------------------------------------------
 
@@ -179,14 +179,6 @@ def main():
     #                useSecondHits=False,
     #                flightTimeEstimation="outwards",
     #                filter="cuts_from_DB")
-
-    # Constructs clusters
-    # path.add_module("TFCDC_ClusterPreparer",
-    #                ClusterFilter="all",
-    #                ClusterFilterParameters={})
-
-    # Find segments within the clusters
-    # path.add_module("TFCDC_SegmentFinderFacetAutomaton")
 
     ####
 
