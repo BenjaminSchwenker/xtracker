@@ -174,11 +174,11 @@ def main():
 
     # Parts of CDC TF that may turn out to be usefull here
     # Init the geometry for cdc tracking and the hits and cut low ADC hits
-    # path.add_module("TFCDC_WireHitPreparer",
-    #                wirePosition="aligned",
-    #                useSecondHits=False,
-    #                flightTimeEstimation="outwards",
-    #                filter="cuts_from_DB")
+    path.add_module("TFCDC_WireHitPreparer",
+                    wirePosition="aligned",
+                    useSecondHits=False,
+                    flightTimeEstimation="outwards",
+                    filter="cuts_from_DB")
 
     ####
 
