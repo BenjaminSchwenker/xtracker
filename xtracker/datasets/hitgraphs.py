@@ -29,7 +29,7 @@ class HitGraphDataset(Dataset):
     def __init__(self, input_dir, n_samples=None):
         input_dir = os.path.expandvars(input_dir)
         filenames = [os.path.join(input_dir, f) for f in os.listdir(input_dir)
-                     if f.startswith('event') and not f.endswith('_ID.npz')]
+                     if f.startswith('graph') and not f.endswith('_ID.npz')]
         self.filenames = (
             filenames[:n_samples] if n_samples is not None else filenames)
 

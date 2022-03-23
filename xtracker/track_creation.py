@@ -72,14 +72,19 @@ def compute_tracks_from_graph_ml(x, edges, preds, cut=0.5, min_hits=3, min_qi=0.
     # ingoing and outgoing edge.
     argmax_in, argmax_out = max_edges(num_nodes, edges, preds)
 
+    # Find seed hits where outgoing track starts
     out_seed_hit_indices = []
-    in_seed_hit_indices = []
     for i in range(num_nodes):
-        if preds[argmax_out[i]] > cut and preds[argmax_in[i]] < cut:
-            out_seed_hit_indices.append(i)
+        if argmax_out[i] == num_edges:
+            continue
 
-        if preds[argmax_in[i]] > cut and preds[argmax_out[i]] < cut:
-            in_seed_hit_indices.append(i)
+        if argmax_in[i] == num_edges:
+            preds_in = 0
+        else:
+            preds_in = preds[argmax_in[i]]
+
+        if preds[argmax_out[i]] > cut and preds_in < cut:
+            out_seed_hit_indices.append(i)
 
     # Lets try to process the outgoing seeds first.
 
@@ -89,26 +94,27 @@ def compute_tracks_from_graph_ml(x, edges, preds, cut=0.5, min_hits=3, min_qi=0.
     # These are qi values for track candiates
     tracks_qi = []
 
-    # This shows if a node is already used (1) or not (0)
-    used_hits = np.zeros(num_nodes)
-
     for seed in out_seed_hit_indices:
 
         curr_hit = seed
         track = [curr_hit, ]
         qi = 0.0
-        used_hits[curr_hit] += 1
 
-        for step in range(100):
-            # find next hit
-            delta_qi = preds[argmax_out[curr_hit]]
-            if delta_qi > cut:
-                curr_hit = edges[1, argmax_out[curr_hit]]
-                track.append(curr_hit)
-                used_hits[curr_hit] += 1
-                qi += delta_qi
-            else:
+        for step in range(400):
+            # Check first stop condition
+            if argmax_out[curr_hit] == num_edges:
                 break
+
+            delta_qi = preds[argmax_out[curr_hit]]
+
+            # Check 2nd stop condition
+            if delta_qi < cut:
+                break
+
+            # Move to next hit
+            curr_hit = edges[1, argmax_out[curr_hit]]
+            track.append(curr_hit)
+            qi += delta_qi
 
         if len(track) >= min_hits:
             qi = qi / (len(track) - 1)

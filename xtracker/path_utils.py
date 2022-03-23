@@ -6,8 +6,6 @@
 # This file is licensed under LGPL-3.0, see LICENSE.md.                  #
 ##########################################################################
 
-from pybasf2 import B2WARNING
-from ROOT import Belle2
 from basf2 import register_module
 
 from xtracker.basf2_modules.gnn_tracker_module import GNNTracker
@@ -21,15 +19,15 @@ def add_vtx_track_finding_gnn(
     components=None,
     suffix="",
     model_path="tracking/data/gnn_vtx",
-    n_det_layers=5,
+    event_cuts={},
+    segment_cuts={},
+    tracker_config={},
 ):
     """
-    Convenience function for adding all graph neural network vxd track finder modules
-    to the path. The function only considers VTX hits for VTX standalone
-    tracking.
+    Convenience function for adding all graph neural network track finder modules
+    to the path. The function considers VTX and CDC hits for tracking.
 
-    The result is a StoreArray with name @param reco_tracks full of RecoTracks (not TrackCands any more!).
-    Use the GenfitTrackCandidatesCreator Module to convert back.
+    The result is a StoreArray with name @param reco_tracks full of RecoTracks.
 
     :param path: basf2 path
     :param vtx_clusters: VTXCluster collection name
@@ -39,14 +37,16 @@ def add_vtx_track_finding_gnn(
     :param suffix: all names of intermediate Storearrays will have the suffix appended. Useful in cases someone needs to
                    put several instances of track finding in one path.
     :param model_path: if set to a finite value, neural network state will be loaded from file instead of the database.
-    :param n_det_layers: Number of vertex detector layers used for tracking
+    :param event_cuts: dictionary of parameters for selecting event data for tracking
+    :param segment_cuts: dictionary of parameters for selecting segments between hits
+    :param tracker_config: dictionary of additional tracker configurations
     """
 
     # setup the event level tracking info to log errors and stuff
     nameTrackingInfoModule = "RegisterEventLevelTrackingInfo" + suffix
     nameEventTrackingInfo = "EventLevelTrackingInfo" + suffix
     if nameTrackingInfoModule not in path:
-        # Use modified name of module and created StoreObj
+        # use modified name of module and created StoreObj
         registerEventlevelTrackingInfo = register_module('RegisterEventLevelTrackingInfo')
         registerEventlevelTrackingInfo.set_name(nameTrackingInfoModule)
         registerEventlevelTrackingInfo.param('EventLevelTrackingInfoName', nameEventTrackingInfo)
@@ -54,15 +54,23 @@ def add_vtx_track_finding_gnn(
 
     # add the tracker
     tracker = GNNTracker(
-        modelPath=Belle2.FileSystem.findFile(model_path),
-        n_det_layers=n_det_layers,
+        model_path=model_path,
+        event_cuts=event_cuts,
+        segment_cuts=segment_cuts,
+        tracker_config=tracker_config,
         trackCandidatesColumnName=reco_tracks)
     path.add_module(tracker)
 
 
 def add_track_printer(
     path,
-    reco_tracks="RecoTracks"
+    reco_tracks="RecoTracks",
+    mc_reco_tracks="MCRecoTracks",
+    printSimHits=False,
 ):
-    printer = TrackPrinter(trackCandidatesColumnName=reco_tracks)
+    printer = TrackPrinter(
+        trackCandidatesColumnName=reco_tracks,
+        mcTrackCandidatesColumName=mc_reco_tracks,
+        printSimHits=printSimHits,
+    )
     path.add_module(printer)

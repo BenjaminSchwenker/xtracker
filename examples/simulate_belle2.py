@@ -13,12 +13,12 @@
 Script to simulate Belle II MC for training of track finder.
 
 The simulated detector uses the upgraded vertex detector with a fully pixelated
-vertex detector. The exact detector geometry is the 5 layer barrel only case. It
-can be changed by using a different global tag (GT) name.
+vertex detector (VTX) and the current Central Drift Chamber (CDC). The exact detector
+geometry is set by the environment variable BELLE2_VTX_UPGRADE_GT.
 
 Usage:
 export BELLE2_VTX_UPGRADE_GT=upgrade_2021-07-16_vtx_5layer
-basf2 simulate_belle2.py -- configs/sim_events_belle2.yaml
+basf2 simulate_belle2.py -- configs/belle2_vtx_cdc.yaml
 """
 
 import argparse
@@ -34,23 +34,24 @@ from simulation import add_simulation
 from xtracker.basf2_modules.event_collector_module import TrackingEventCollector
 from vtx import add_vtx_reconstruction, get_upgrade_globaltag
 
-# Need to use default global tag prepended with upgrade GT
-b2.conditions.disable_globaltag_replay()
-b2.conditions.prepend_globaltag(get_upgrade_globaltag())
-
-# ---------------------------------------------------------------------------------------
+# Many scripts import these functions from `tracking`, so leave these imports here
+from tracking.path_utils import add_hit_preparation_modules
 
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser('prepare_graphs.py')
+    parser = argparse.ArgumentParser('simulate_belle2.py')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/sim_events_belle2.yaml')
+    add_arg('config', nargs='?', default='configs/belle2_vtx_cdc.yaml')
     return parser.parse_args()
 
 
 def main():
     """Main function"""
+
+    # Use default global tag prepended with upgrade GT to replace PXD+SVD by VTX
+    b2.conditions.disable_globaltag_replay()
+    b2.conditions.prepend_globaltag(get_upgrade_globaltag())
 
     # Parse the command line
     args = parse_args()
@@ -60,14 +61,14 @@ def main():
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Prepare output
-    output_dir = os.path.expandvars(config['output_dir'])
+    output_dir = os.path.expandvars(config['global']['event_dir'])
     os.makedirs(output_dir, exist_ok=True)
 
     # Number of events to simulate j
-    n_events = config['n_events']
+    n_events = config['global']['n_events']
 
     # Set Random Seed for reproducable simulation.
-    rndseed = config['rndseed']
+    rndseed = config['global']['rndseed']
     b2.set_random_seed(rndseed)
 
     # Set log level. Can be overridden with the "-l LEVEL" flag for basf2.
@@ -160,29 +161,51 @@ def main():
     # Detector Simulation:
     add_simulation(path=path, useVTX=True,)
 
-    # needed for fitting
-    path.add_module('SetupGenfitExtrapolation')
+    # Needed for track fitting
+    path.add_module('SetupGenfitExtrapolation', energyLossBrems=False, noiseBrems=False)
 
-    add_vtx_reconstruction(path=path)
+    # Prepare hits for tracking
+    add_hit_preparation_modules(
+        path=path,
+        components=None,
+        useVTX=True,
+        useVTXClusterShapes=True
+    )
+
+    # Parts of CDC TF that may turn out to be usefull here
+    # Init the geometry for cdc tracking and the hits and cut low ADC hits
+    # path.add_module("TFCDC_WireHitPreparer",
+    #                wirePosition="aligned",
+    #                useSecondHits=False,
+    #                flightTimeEstimation="outwards",
+    #                filter="cuts_from_DB")
+
+    # Constructs clusters
+    # path.add_module("TFCDC_ClusterPreparer",
+    #                ClusterFilter="all",
+    #                ClusterFilterParameters={})
+
+    # Find segments within the clusters
+    # path.add_module("TFCDC_SegmentFinderFacetAutomaton")
+
+    ####
 
     # Setting up the MC based track finder.
     mctrackfinder = b2.register_module('TrackFinderMCTruthRecoTracks')
-
-    for param, value in config['mctrackfinder'].items():
+    for param, value in config['simulation']['mctrackfinder'].items():
         mctrackfinder.param(param, value)
-
     path.add_module(mctrackfinder)
 
-    # include a track fit into the chain (sequence adopted from the tracking scripts)
-    # Correct time seed: Do I need it for VXD only tracks ????
+    # Include a track fit into the chain (sequence adopted from the tracking scripts)
     path.add_module("IPTrackTimeEstimator", recoTracksStoreArrayName="MCRecoTracks", useFittedInformation=False)
 
-    # track fitting
+    # Track fitting
     daffitter = b2.register_module("DAFRecoFitter")
     daffitter.param('recoTracksStoreArrayName', "MCRecoTracks")
     path.add_module(daffitter)
 
-    event_collector = TrackingEventCollector(output_dir_name=output_dir)
+    # Building tracking events for training xtracker
+    event_collector = TrackingEventCollector(output_dir_name=output_dir, event_cuts=config['simulation']['event_collector'])
     path.add_module(event_collector)
 
     b2.print_path(path)

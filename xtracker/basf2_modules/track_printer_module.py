@@ -6,8 +6,8 @@
 # This file is licensed under LGPL-3.0, see LICENSE.md.                  #
 ##########################################################################
 
+import numpy as np
 import math
-import ROOT
 from ROOT import Belle2
 from ROOT import TVector3
 import basf2 as b2
@@ -19,12 +19,6 @@ from tracking.validation.utilities import (
     calc_ndf_from_det_hit_ids,
 )
 
-import numpy as np
-import pandas as pd
-import collections
-
-import os
-
 
 class TrackPrinter(b2.Module):
     """Module to print track contents to stdout."""
@@ -34,6 +28,7 @@ class TrackPrinter(b2.Module):
         cdcHitsColumnName='CDCHits',
         trackCandidatesColumnName="RecoTracks",
         mcTrackCandidatesColumName="MCRecoTracks",
+        printSimHits=True,
     ):
         """Constructor"""
 
@@ -44,6 +39,8 @@ class TrackPrinter(b2.Module):
         self.trackCandidatesColumnName = trackCandidatesColumnName
         #: cached name of the MCRecoTracks StoreArray
         self.mcTrackCandidatesColumnName = mcTrackCandidatesColumName
+        #: cached flag for printing simhits
+        self.printSimHits = printSimHits
 
     def initialize(self):
         """Receive signal at the start of event processing"""
@@ -60,7 +57,6 @@ class TrackPrinter(b2.Module):
 
         # Analyse from the Monte Carlo reference side
         mcTrackCands = Belle2.PyStoreArray(self.mcTrackCandidatesColumnName)
-        mcParticles = Belle2.PyStoreArray('MCParticles')
 
         for i, mcTrackCand in enumerate(mcTrackCands):
 
@@ -78,7 +74,7 @@ class TrackPrinter(b2.Module):
             ndf = calc_ndf_from_det_hit_ids(det_hit_ids)
             nhits = len(det_hit_ids)
 
-            print('  {} MCTrack charge={} pt={} and tanLambda={}'.format(i, charge, pt, tan_lambda))
+            print('  {} MCTrack nhits={} charge={} pt={} and tanLambda={}'.format(i, nhits, charge, pt, tan_lambda))
 
             ihit = 0
             # Loop over all hits
@@ -96,18 +92,39 @@ class TrackPrinter(b2.Module):
                     hit = hit_info.getRelated("VTXClusters")
                     layer = hit.getSensorID().getLayerNumber()
 
-                    sensor_info = Belle2.VXD.GeoCache.get(hit.getSensorID())
-                    position = sensor_info.pointToGlobal(TVector3(hit.getU(), hit.getV(), 0), True)
+                    if self.printSimHits:
+                        simHit = hit.getRelated('VTXTrueHits')
+                        if not simHit:
+                            print("     Skipping VTXCluster without related VTXTrueHit.")
+                            print("     This should not happen")
+                            continue
 
-                    print('     {} hit x={}, y={} z={}, layer={}'.format(ihit, position.X(), position.Y(), position.Z(), layer))
+                        tof = simHit.getGlobalTime()
+                        print('     {} hit tof={}, layer={}'.format(ihit, tof, layer))
+
+                    else:
+                        sensor_info = Belle2.VXD.GeoCache.get(hit.getSensorID())
+                        position = sensor_info.pointToGlobal(TVector3(hit.getU(), hit.getV(), 0), True)
+
+                        print('     {} hit x={}, y={} z={}, layer={}'.format(ihit, position.X(), position.Y(), position.Z(), layer))
 
                 if hit_info.getTrackingDetector() == Belle2.RecoHitInformation.c_CDC:
                     hit = hit_info.getRelated("CDCHits")
-                    layer = hit.getISuperLayer()
+                    layer = hit.getICLayer()
+
+                    simHit = hit.getRelated('CDCSimHits')
+                    if not simHit:
+                        print("     Skipping CDCHit without related CDCSimHit.")
+                        print("     This should not happen")
+                        continue
+
+                    tof = simHit.getFlightTime()
+
+                    print('     {} cdchit tof={} layer={}'.format(ihit, tof, layer))
 
         print('Print {}:'.format(self.trackCandidatesColumnName))
 
-        # Analyse from the Monte Carlo reference side
+        # Analyse from the PR side
         prTrackCands = Belle2.PyStoreArray(self.trackCandidatesColumnName)
 
         for i, prTrackCand in enumerate(prTrackCands):
@@ -135,11 +152,33 @@ class TrackPrinter(b2.Module):
                     hit = hit_info.getRelated("VTXClusters")
                     layer = hit.getSensorID().getLayerNumber()
 
-                    sensor_info = Belle2.VXD.GeoCache.get(hit.getSensorID())
-                    position = sensor_info.pointToGlobal(TVector3(hit.getU(), hit.getV(), 0), True)
+                    if self.printSimHits:
+                        simHit = hit.getRelated('VTXTrueHits')
+                        if not simHit:
+                            print("     Skipping VTXCluster without related VTXTrueHit.")
+                            print("     This should not happen")
+                            continue
 
-                    print('     {} hit x={}, y={} z={}, layer={}'.format(ihit, position.X(), position.Y(), position.Z(), layer))
+                        tof = simHit.getGlobalTime()
+
+                        print('     {} hit tof={}, layer={}'.format(ihit, tof, layer))
+
+                    else:
+                        sensor_info = Belle2.VXD.GeoCache.get(hit.getSensorID())
+                        position = sensor_info.pointToGlobal(TVector3(hit.getU(), hit.getV(), 0), True)
+
+                        print('     {} hit x={}, y={} z={}, layer={}'.format(ihit, position.X(), position.Y(), position.Z(), layer))
 
                 if hit_info.getTrackingDetector() == Belle2.RecoHitInformation.c_CDC:
                     hit = hit_info.getRelated("CDCHits")
-                    layer = hit.getISuperLayer()
+                    layer = hit.getICLayer()
+
+                    simHit = hit.getRelated('CDCSimHits')
+                    if not simHit:
+                        print("     Skipping CDCHit without related CDCSimHit.")
+                        print("     This should not happen")
+                        continue
+
+                    tof = simHit.getFlightTime()
+
+                    print('     {} cdchit  tof={}, layer={}'.format(ihit, tof, layer))

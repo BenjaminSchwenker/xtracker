@@ -14,14 +14,14 @@
 Data preparation script for training of xtracker.
 
 Prepares hitgraphs from simulated events for training. Can be used for
-Belle II MC and simplified toytracker.
+Belle II MC and a simplified detector called toytracker.
 
 Usage:
-python3 prepare_graphs.py configs/prep_graphs_belle2.yaml
+python3 prepare_graphs.py configs/belle2_vtx_cdc.yaml
 
 or
 
-python3 prepare_graphs.py configs/prep_graphs_toytracker.yaml
+python3 prepare_graphs.py configs/toytracker.yaml
 """
 
 import os
@@ -36,16 +36,14 @@ import numpy as np
 import pandas as pd
 
 from xtracker.datasets.graph import Graph, save_graphs
-from xtracker.graph_creation import (
-    calc_dphi, calc_eta, select_segments, construct_graph, select_hits, split_detector_sections, form_layer_pairs
-)
+from xtracker.graph_creation import make_graph
 
 
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('prepare_graphs.py')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/prep_graphs_belle2.yaml')
+    add_arg('config', nargs='?', default='configs/belle2_vtx_cdc.yaml')
     add_arg('--n-workers', type=int, default=1)
     add_arg('--n-tasks', type=int, default=1)
     add_arg('-v', '--verbose', action='store_true')
@@ -55,56 +53,49 @@ def parse_args():
 def process_event(
     evtid, output_dir, pt_min, n_eta_sections, n_phi_sections,
     eta_range, phi_range, phi_slope_max, z0_max, input_dir, segment_type, n_det_layers,
-    feature_scale_r, feature_scale_phi, feature_scale_z
+    feature_scale_r, feature_scale_phi, feature_scale_z, feature_scale_t, useMC,
 ):
 
     # Read the data
     logging.info('Event %i, read event' % evtid)
 
-    if not Path(input_dir + '/graph_id_{}.h5'.format(evtid)).is_file():
+    if not Path(input_dir + '/event_id_{}.h5'.format(evtid)).is_file():
         logging.info('Event %i not found.' % evtid)
         return
 
-    hits = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid)), 'hits')
-    truth = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid)), 'truth')
-    particles = pd.read_hdf(os.path.expandvars(input_dir + '/graph_id_{}.h5'.format(evtid)), 'particles')
+    hits = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'hits')
+    truth = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'truth')
+    particles = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'particles')
 
     # Read the data
     logging.info('Event %i, generate graph' % evtid)
 
-    # Apply hit selection
-    logging.info('Event %i, selecting hits' % evtid)
-    hits = select_hits(hits, truth, particles, pt_min=pt_min).assign(evtid=evtid)
-
-    # Divide detector into sections
-    phi_edges = np.linspace(*phi_range, num=n_phi_sections + 1)
-    eta_edges = np.linspace(*eta_range, num=n_eta_sections + 1)
-    hits_sections = split_detector_sections(hits, phi_edges, eta_edges)
-
-    # Construct layer pairs
-    layer_pairs = form_layer_pairs(n_det_layers, segment_type)
-
-    # Graph features and scale
-    feature_names = ['r', 'phi', 'z']
-
-    # Scale hit coordinates
-    feature_scale = np.array([feature_scale_r, np.pi / n_phi_sections / feature_scale_phi, feature_scale_z])
-
-    # Construct the graph
-    logging.info('Event %i, constructing graphs' % evtid)
-    graphs_all = [construct_graph(section_hits, layer_pairs=layer_pairs,
-                                  phi_slope_max=phi_slope_max, z0_max=z0_max,
-                                  feature_names=feature_names,
-                                  feature_scale=feature_scale)
-                  for section_hits in hits_sections]
-    graphs = [x[0] for x in graphs_all]
-    IDs = [x[1] for x in graphs_all]
+    graphs, IDs = make_graph(
+        hits,
+        truth,
+        particles,
+        evtid,
+        n_det_layers,
+        pt_min,
+        phi_range,
+        n_phi_sections,
+        eta_range,
+        n_eta_sections,
+        segment_type,
+        z0_max,
+        phi_slope_max,
+        feature_scale_r,
+        feature_scale_phi,
+        feature_scale_z,
+        feature_scale_t,
+        useMC=useMC,
+    )
 
     # Write these graphs to the output directory
     try:
-        filenames = [os.path.join(output_dir, 'event_%04i_g%03i' % (evtid, i))
+        filenames = [os.path.join(output_dir, 'graph_%04i_g%03i' % (evtid, i))
                      for i in range(len(graphs))]
-        filenames_ID = [os.path.join(output_dir, 'event_%04i_g%03i_ID' % (evtid, i))
+        filenames_ID = [os.path.join(output_dir, 'graph_%04i_g%03i_ID' % (evtid, i))
                         for i in range(len(graphs))]
     except Exception as e:
         logging.info(e)
@@ -131,13 +122,13 @@ def main():
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Prepare output
-    input_dir = os.path.expandvars(config['input_dir'])
-    output_dir = os.path.expandvars(config['output_dir'])
+    input_dir = os.path.expandvars(config['global']['event_dir'])
+    output_dir = os.path.expandvars(config['global']['graph_dir'])
     os.makedirs(output_dir, exist_ok=True)
     logging.info('Writing outputs to ' + output_dir)
 
     # We generate events on the fly, just need to know how many
-    events = range(config['n_events'])
+    events = range(config['global']['n_events'])
 
     # Process input files with a worker pool
     with mp.Pool(processes=args.n_workers) as pool:
