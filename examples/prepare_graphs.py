@@ -17,7 +17,7 @@ Prepares hitgraphs from simulated events for training. Can be used for
 Belle II MC and a simplified detector called toytracker.
 
 Usage:
-python3 prepare_graphs.py configs/belle2_vtx_cdc.yaml
+python3 prepare_graphs.py configs/belle2_vtx_cdc.yaml --n-workers=3
 
 or
 
@@ -27,6 +27,7 @@ python3 prepare_graphs.py configs/toytracker.yaml
 import os
 import argparse
 import logging
+import shutil
 from pathlib import Path
 import multiprocessing as mp
 from functools import partial
@@ -66,7 +67,7 @@ def process_event(
     hits = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'hits')
     truth = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'truth')
     particles = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'particles')
-
+    
     # Read the data
     logging.info('Event %i, generate graph' % evtid)
 
@@ -124,6 +125,7 @@ def main():
     # Prepare output
     input_dir = os.path.expandvars(config['global']['event_dir'])
     output_dir = os.path.expandvars(config['global']['graph_dir'])
+    shutil.rmtree(output_dir, ignore_errors=True)
     os.makedirs(output_dir, exist_ok=True)
     logging.info('Writing outputs to ' + output_dir)
 

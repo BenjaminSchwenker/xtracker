@@ -26,6 +26,7 @@ import os
 import sys
 import random
 import yaml
+import shutil
 
 import basf2 as b2
 import ROOT as r
@@ -33,8 +34,6 @@ from beamparameters import add_beamparameters
 from simulation import add_simulation
 from xtracker.basf2_modules.event_collector_module import TrackingEventCollector
 from vtx import add_vtx_reconstruction, get_upgrade_globaltag
-
-# Many scripts import these functions from `tracking`, so leave these imports here
 from tracking.path_utils import add_hit_preparation_modules
 
 
@@ -62,6 +61,7 @@ def main():
 
     # Prepare output
     output_dir = os.path.expandvars(config['global']['event_dir'])
+    shutil.rmtree(output_dir, ignore_errors=True)
     os.makedirs(output_dir, exist_ok=True)
 
     # Number of events to simulate j
@@ -127,7 +127,7 @@ def main():
     }
 
     particlegun.param(param_pGun)
-    path.add_module(particlegun)
+    #path.add_module(particlegun)
 
     # Particle gun for low pt pions
     particlegun_2 = b2.register_module('ParticleGun')
@@ -137,7 +137,7 @@ def main():
         'pdgCodes': [211, -211],   # 211 = pion --> negatively charged!
         'nTracks': 1,
         'momentumGeneration': 'uniform',
-        'momentumParams': [0.1, 0.30],
+        'momentumParams': [0.4, 4.0],
         'vertexGeneration': 'uniform',
         'xVertexParams': [vertex_x - vertex_delta, vertex_x + vertex_delta],            # in cm...
         'yVertexParams': [vertex_y - vertex_delta, vertex_y + vertex_delta],
@@ -154,7 +154,7 @@ def main():
 
     evtgenInput = b2.register_module('EvtGenInput')
     evtgenInput.logging.log_level = b2.LogLevel.WARNING
-    path.add_module(evtgenInput)
+    #path.add_module(evtgenInput)
 
     # ---------------------------------------------------------------------------------------
 
@@ -174,25 +174,17 @@ def main():
 
     # Parts of CDC TF that may turn out to be usefull here
     # Init the geometry for cdc tracking and the hits and cut low ADC hits
-    # path.add_module("TFCDC_WireHitPreparer",
-    #                wirePosition="aligned",
-    #                useSecondHits=False,
-    #                flightTimeEstimation="outwards",
-    #                filter="cuts_from_DB")
-
-    # Constructs clusters
-    # path.add_module("TFCDC_ClusterPreparer",
-    #                ClusterFilter="all",
-    #                ClusterFilterParameters={})
-
-    # Find segments within the clusters
-    # path.add_module("TFCDC_SegmentFinderFacetAutomaton")
+    path.add_module("TFCDC_WireHitPreparer",
+                    wirePosition="aligned",
+                    useSecondHits=False,
+                    flightTimeEstimation="outwards",
+                    filter="cuts_from_DB")
 
     ####
 
     # Setting up the MC based track finder.
     mctrackfinder = b2.register_module('TrackFinderMCTruthRecoTracks')
-    for param, value in config['simulation']['mctrackfinder'].items():
+    for param, value in config['mctrackfinder'].items():
         mctrackfinder.param(param, value)
     path.add_module(mctrackfinder)
 
@@ -205,7 +197,7 @@ def main():
     path.add_module(daffitter)
 
     # Building tracking events for training xtracker
-    event_collector = TrackingEventCollector(output_dir_name=output_dir, event_cuts=config['simulation']['event_collector'])
+    event_collector = TrackingEventCollector(output_dir_name=output_dir, event_cuts=config['event_cuts'])
     path.add_module(event_collector)
 
     b2.print_path(path)
