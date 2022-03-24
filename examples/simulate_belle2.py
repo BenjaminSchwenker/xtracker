@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
+
 
 """
 Script to simulate Belle II MC for training of track finder.
@@ -17,8 +16,8 @@ vertex detector (VTX) and the current Central Drift Chamber (CDC). The exact det
 geometry is set by the environment variable BELLE2_VTX_UPGRADE_GT.
 
 Usage:
-export BELLE2_VTX_UPGRADE_GT=upgrade_2021-07-16_vtx_5layer
-basf2 simulate_belle2.py -- configs/belle2_vtx_cdc.yaml
+export BELLE2_VTX_UPGRADE_GT=upgrade_2022-01-21_vtx_5layer
+basf2 simulate_belle2.py -- configs/belle2_vtx.yaml
 """
 
 import argparse
@@ -78,7 +77,6 @@ def main():
     path = b2.create_path()
 
     eventinfosetter = b2.register_module('EventInfoSetter')
-    # default phase3
     exp_number = 0
     eventinfosetter.param("expList", [exp_number])
     eventinfosetter.param("evtNumList", [n_events])
@@ -109,8 +107,6 @@ def main():
     # additional flatly smear the muon vertex between +/- this value
     vertex_delta = 0.005  # in cm
 
-    print("WARNING: setting non-default beam vertex at x= " + str(vertex_x) + " y= " + str(vertex_y) + " z= " + str(vertex_z))
-
     # Particle Gun:
     # One can add more particle gun modules if wanted.
     particlegun = b2.register_module('ParticleGun')
@@ -127,7 +123,7 @@ def main():
     }
 
     particlegun.param(param_pGun)
-    #path.add_module(particlegun)
+    path.add_module(particlegun)
 
     # Particle gun for low pt pions
     particlegun_2 = b2.register_module('ParticleGun')
@@ -154,7 +150,7 @@ def main():
 
     evtgenInput = b2.register_module('EvtGenInput')
     evtgenInput.logging.log_level = b2.LogLevel.WARNING
-    #path.add_module(evtgenInput)
+    path.add_module(evtgenInput)
 
     # ---------------------------------------------------------------------------------------
 
@@ -179,8 +175,6 @@ def main():
                     useSecondHits=False,
                     flightTimeEstimation="outwards",
                     filter="cuts_from_DB")
-
-    ####
 
     # Setting up the MC based track finder.
     mctrackfinder = b2.register_module('TrackFinderMCTruthRecoTracks')

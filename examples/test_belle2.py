@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 """
 Simple script to generate a sample of Belle II events.
 Output fie can be displayed later with b2display tool.
 
 Usage: Set global tag and run
-export BELLE2_VTX_UPGRADE_GT=upgrade_2021-07-16_vtx_5layer
-basf2 test_belle2.py -n 10 -- configs/belle2_vtx_cdc.yaml
+export BELLE2_VTX_UPGRADE_GT=upgrade_2022-01-21_vtx_5layer
+basf2 test_belle2.py -n 10 -- configs/belle2_vtx.yaml
 """
 
 import basf2 as b2
@@ -97,17 +95,12 @@ def main():
     # VTX reconstruction
     add_vtx_reconstruction(path=path)
 
-    # Setting up the MC based track finder.
-    mctrackfinder = b2.register_module('TrackFinderMCTruthRecoTracks')
-    mctrackfinder.param("RecoTracksStoreArrayName", "MCRecoTracks")
-    path.add_module(mctrackfinder)
-
     # Setting up the neural network based track finder
     add_vtx_track_finding_gnn(
         path=path,
         reco_tracks="RecoTracks",
-        model_path="tracking/data/gnn_vtx",
-        event_cuts=config['simulation']['event_collector'],
+        model_path=config['training']['checkpoint'],
+        event_cuts=config['event_cuts'],
         segment_cuts=config['selection'],
         tracker_config=config['model'],
     )
@@ -119,8 +112,6 @@ def main():
     path.add_module(daffitter)
     # also used in the tracking sequence (multi hypothesis)
     path.add_module('TrackCreator', recoTrackColName="RecoTracks", pdgCodes=[211, 321, 2212])
-
-    add_track_printer(path=path, reco_tracks="RecoTracks")
 
     path.add_module("PrintCollections")
 

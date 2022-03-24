@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 
 """
@@ -61,7 +59,7 @@ def process_event(
         pMin=p_min, pMax=p_max, charge=None
     )
 
-    filename = output_dir + '/{}_id_{}.h5'.format("graph", evtid)
+    filename = output_dir + '/{}_id_{}.h5'.format("event", evtid)
     hits.to_hdf(filename, key='hits')
     truth.to_hdf(filename, key='truth')
     particles.to_hdf(filename, key='particles')

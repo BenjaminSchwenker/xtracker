@@ -1,11 +1,9 @@
 # Global parameters 
 global:
-    n_events: 2000 #00                                   # Number of events to simulate 
+    n_events: 1000 #5000                                # Number of events to simulate 
     rndseed: 12345                                      # Random seed 
-    event_dir: ${HEP_DATA}/events_belle2_vtx_cdc        # Path to Simulated events
+    event_dir: ${HEP_DATA}/events_belle2_vtx_cdc        # Path to events
     graph_dir: ${HEP_DATA}/hitgraphs_belle2_vtx_cdc     # Path to hit graphs 
-    saved_model: ${HEP_DATA}/saved_model_vtx_cdc        # Path to saved model
-
 
 # basf2 MC trackfinder params 
 mctrackfinder:
@@ -58,9 +56,9 @@ training:
     arenaCompare: 40             # Number of games to played in arena for network evaluation 
     tempThreshold: 5            # Unused
     supervised_training: True
-    checkpoint: ./temp_vtx_cdc/
+    checkpoint: ${HEP_DATA}/model_vtx_cdc/
     load_model: False
-    load_folder_file: !!python/tuple ['./temp_vtx_cdc/','best.pth.tar']
+    load_folder_file: !!python/tuple ["${HEP_DATA}/model_vtx_cdc/","best.pth.tar"]
     numItersForTrainExamplesHistory: 2 
     pre_scale_examples: 0.1 #0.01
     pre_stop_example: 0.0 
@@ -75,13 +73,12 @@ model:
 
 optimizer:
     name: Adam 
-    lr: 0.0001 
-    #dropout: 0.3
+    lr: 0.0001
     epochs: 1
     batch_size: 1
 
 data: 
-    name: hitgraphs_sparse
-    n_train: 1800
+    name: hitgraphs
+    n_train: 800
     n_valid: 200
     batch_size: 1  
