@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 
 """
@@ -28,8 +26,8 @@ from torch.utils.data import Subset, DataLoader
 
 
 def get_dataset(config):
-    from xtracker.datasets.hitgraphs_sparse import HitGraphDataset
-    return xtracker.datasets.hitgraphs_sparse.HitGraphDataset(get_input_dir(config))
+    from xtracker.datasets.hitgraphse import HitGraphDataset
+    return xtracker.datasets.hitgraphs.HitGraphDataset(get_input_dir(config))
 
 
 def get_test_data_loader(config, n_test=16, batch_size=1):

@@ -1,10 +1,9 @@
 # Global parameters 
 global:
-    n_events: 5000                                      # Number of events to simulate 
+    n_events: 1000 #5000                                # Number of events to simulate 
     rndseed: 12345                                      # Random seed 
-    event_dir: ${HEP_DATA}/events_toytracker            # Path to Simulated events
+    event_dir: ${HEP_DATA}/events_toytracker            # Path to events
     graph_dir: ${HEP_DATA}/hitgraphs_toytracker         # Path to hit graphs 
-    saved_model: ${HEP_DATA}/saved_models/toytracker    # Path to saved model
 
 # Event simulation configuration
 simulation:
@@ -17,7 +16,7 @@ simulation:
     num_noise_min: 120
     num_noise_max: 180
 
-# Graph building configuration
+# Hit graph building configuration
 selection:
     n_det_layers: 6
     pt_min: 0. # GeV
@@ -31,7 +30,10 @@ selection:
     feature_scale_phi: 1.0
     feature_scale_z: 100.0
     feature_scale_t: 1.0
+    useMC: False 
 
+
+# Training configuration
 training:
     numIters: 180             # Number of training iterations 
     numEps: 25                # Number of new games to simulate during a new iteration.
@@ -39,9 +41,9 @@ training:
     arenaCompare: 512         # Number of games to played in arena for network evaluation 
     tempThreshold: 5          # Unused
     supervised_training: True
-    checkpoint: ./temp_toytracker/
+    checkpoint: ${HEP_DATA}/model_toytracker/
     load_model: False
-    load_folder_file: !!python/tuple ['./temp_toytracker/','best.pth.tar']
+    load_folder_file: !!python/tuple ["${HEP_DATA}/model_toytracker/","best.pth.tar"]
     numItersForTrainExamplesHistory: 2 
     pre_scale_examples: 0.001 
     pre_stop_example: 0.0 
@@ -52,16 +54,16 @@ model:
     mid_steps: 4
     noise_sigma: 0.0  
     update_e: False 
+    useMC: False
 
 optimizer:
     name: Adam 
     lr: 0.0005 
-    #dropout: 0.3
     epochs: 1
     batch_size: 1
 
 data: 
-    name: hitgraphs_sparse
-    n_train: 8000
-    n_valid: 1000
+    name: hitgraphs
+    n_train: 800
+    n_valid: 200
     batch_size: 1  

@@ -1,20 +1,14 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 
 """
 This module implements the PyTorch modules that define a sparse
 message-passing graph neural network. The output is a policy
 vector p over all legal moves and a value v of the current board.
-
-In particular, this implementation utilizes the pytorch_geometric
-and supporting libraries:
-https://github.com/rusty1s/pytorch_geometric
 """
 
 import torch

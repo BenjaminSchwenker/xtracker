@@ -1,10 +1,8 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 """
 PyTorch dataset specifications.
@@ -20,18 +18,10 @@ def get_data_loaders(name, batch_size, distributed=False,
                      **data_args):
     """This may replace the datasets function above"""
     collate_fn = default_collate
-    if name == 'dummy':
-        from .dummy import get_datasets
-        train_dataset, valid_dataset = get_datasets(**data_args)
-    elif name == 'hitgraphs':
+    if name == 'hitgraphs':
         from . import hitgraphs
         train_dataset, valid_dataset = hitgraphs.get_datasets(**data_args)
         collate_fn = hitgraphs.collate_fn
-    elif name == 'hitgraphs_sparse':
-        from torch_geometric.data import Batch
-        from . import hitgraphs_sparse
-        train_dataset, valid_dataset = hitgraphs_sparse.get_datasets(**data_args)
-        collate_fn = Batch.from_data_list
     else:
         raise Exception('Dataset %s unknown' % name)
 

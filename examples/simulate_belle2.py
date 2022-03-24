@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
+
 
 """
 Script to simulate Belle II MC for training of track finder.
@@ -17,8 +16,8 @@ vertex detector (VTX) and the current Central Drift Chamber (CDC). The exact det
 geometry is set by the environment variable BELLE2_VTX_UPGRADE_GT.
 
 Usage:
-export BELLE2_VTX_UPGRADE_GT=upgrade_2021-07-16_vtx_5layer
-basf2 simulate_belle2.py -- configs/belle2_vtx_cdc.yaml
+export BELLE2_VTX_UPGRADE_GT=upgrade_2022-01-21_vtx_5layer
+basf2 simulate_belle2.py -- configs/belle2_vtx.yaml
 """
 
 import argparse
@@ -26,6 +25,7 @@ import os
 import sys
 import random
 import yaml
+import shutil
 
 import basf2 as b2
 import ROOT as r
@@ -33,8 +33,6 @@ from beamparameters import add_beamparameters
 from simulation import add_simulation
 from xtracker.basf2_modules.event_collector_module import TrackingEventCollector
 from vtx import add_vtx_reconstruction, get_upgrade_globaltag
-
-# Many scripts import these functions from `tracking`, so leave these imports here
 from tracking.path_utils import add_hit_preparation_modules
 
 
@@ -62,6 +60,7 @@ def main():
 
     # Prepare output
     output_dir = os.path.expandvars(config['global']['event_dir'])
+    shutil.rmtree(output_dir, ignore_errors=True)
     os.makedirs(output_dir, exist_ok=True)
 
     # Number of events to simulate j
@@ -78,7 +77,6 @@ def main():
     path = b2.create_path()
 
     eventinfosetter = b2.register_module('EventInfoSetter')
-    # default phase3
     exp_number = 0
     eventinfosetter.param("expList", [exp_number])
     eventinfosetter.param("evtNumList", [n_events])
@@ -109,8 +107,6 @@ def main():
     # additional flatly smear the muon vertex between +/- this value
     vertex_delta = 0.005  # in cm
 
-    print("WARNING: setting non-default beam vertex at x= " + str(vertex_x) + " y= " + str(vertex_y) + " z= " + str(vertex_z))
-
     # Particle Gun:
     # One can add more particle gun modules if wanted.
     particlegun = b2.register_module('ParticleGun')
@@ -137,7 +133,7 @@ def main():
         'pdgCodes': [211, -211],   # 211 = pion --> negatively charged!
         'nTracks': 1,
         'momentumGeneration': 'uniform',
-        'momentumParams': [0.1, 0.30],
+        'momentumParams': [0.4, 4.0],
         'vertexGeneration': 'uniform',
         'xVertexParams': [vertex_x - vertex_delta, vertex_x + vertex_delta],            # in cm...
         'yVertexParams': [vertex_y - vertex_delta, vertex_y + vertex_delta],
@@ -174,25 +170,15 @@ def main():
 
     # Parts of CDC TF that may turn out to be usefull here
     # Init the geometry for cdc tracking and the hits and cut low ADC hits
-    # path.add_module("TFCDC_WireHitPreparer",
-    #                wirePosition="aligned",
-    #                useSecondHits=False,
-    #                flightTimeEstimation="outwards",
-    #                filter="cuts_from_DB")
-
-    # Constructs clusters
-    # path.add_module("TFCDC_ClusterPreparer",
-    #                ClusterFilter="all",
-    #                ClusterFilterParameters={})
-
-    # Find segments within the clusters
-    # path.add_module("TFCDC_SegmentFinderFacetAutomaton")
-
-    ####
+    path.add_module("TFCDC_WireHitPreparer",
+                    wirePosition="aligned",
+                    useSecondHits=False,
+                    flightTimeEstimation="outwards",
+                    filter="cuts_from_DB")
 
     # Setting up the MC based track finder.
     mctrackfinder = b2.register_module('TrackFinderMCTruthRecoTracks')
-    for param, value in config['simulation']['mctrackfinder'].items():
+    for param, value in config['mctrackfinder'].items():
         mctrackfinder.param(param, value)
     path.add_module(mctrackfinder)
 
@@ -205,7 +191,7 @@ def main():
     path.add_module(daffitter)
 
     # Building tracking events for training xtracker
-    event_collector = TrackingEventCollector(output_dir_name=output_dir, event_cuts=config['simulation']['event_collector'])
+    event_collector = TrackingEventCollector(output_dir_name=output_dir, event_cuts=config['event_cuts'])
     path.add_module(event_collector)
 
     b2.print_path(path)

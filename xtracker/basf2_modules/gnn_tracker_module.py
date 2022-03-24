@@ -1,10 +1,9 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
+
 
 import numpy as np
 import pandas as pd
@@ -55,20 +54,25 @@ class GNNTracker(b2.Module):
         self.cdcHitsColumnname = cdcHitsColumnName
         #: cached name of the RecoTracks StoreArray
         self.trackCandidatesColumnName = trackCandidatesColumnName
+        #: cached for collecting mc event data
+        self.collect_mc = False
+
+        if self.tracker_config['useMC'] or self.tracker_config['useMC']:
+            B2WARNING("Add MC truth information to xtracker event data => Debug mode.")
+            self.collect_mc = False
 
     def initialize(self):
         """Receive signal at the start of event processing"""
 
-        #: Tracking game object, views tracking as a one player game
+        #: cached tracking game object
         self.game = Game(train_data_loader=None, valid_data_loader=None)
 
-        #: Tracker object
-        tracker_args = dotdict(self.tracker_config)
-        if not tracker_args.useMC:
+        #: cached tracker object for processes the hitgraphs
+        if not self.tracker_config['useMC']:
             # Using Imitation tracker
             net = NNet()
             net.load_checkpoint(self.model_path, 'best.pth.tar')
-            self.tracker = ImTracker(self.game, net, tracker_args)
+            self.tracker = ImTracker(self.game, net, dotdict(self.tracker_config))
         else:
             # Using MC tracking aka TrackingSolver for debugging
             B2WARNING("Using TrackingSolver with MC truth information for debugging.")
@@ -86,8 +90,8 @@ class GNNTracker(b2.Module):
         cdcHits = Belle2.PyStoreArray(self.cdcHitsColumnname)
         vtxClusters = Belle2.PyStoreArray("VTXClusters")
 
-        # Create event data structure
-        if not self.segment_cuts['useMC']:
+        # 1) Create event data
+        if self.collect_mc:
             hits, truth, particles, detector_info = make_event(cdcHits, vtxClusters, self.event_cuts)
         else:
             mcTrackCands = Belle2.PyStoreArray("MCRecoTracksHelpMe")
@@ -95,7 +99,7 @@ class GNNTracker(b2.Module):
             hits, truth, particles, detector_info = make_event_with_mc(
                 cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, self.event_cuts)
 
-        # Make initial hit graphs over event data
+        # 2) Make hit graph for event data
         graphs, IDs = make_graph(
             hits,
             truth,
@@ -105,16 +109,15 @@ class GNNTracker(b2.Module):
             phi_range=(-np.pi, np.pi),
         )
 
-        # Change format, should be streamlined a bit
+        # 3) Process the hitgraph
         batch = get_batch(graph_to_sparse(graphs[0]))
-
-        # Predict track segments on graphs
         board = self.game.getInitBoardFromBatch(batch)
         preds, score = self.tracker.process(board)
 
-        # Create tracks
+        # 4) Create hitsets from processed hitgraph
         tracks, tracks_qi = compute_tracks_from_graph_ml(board.x, board.edge_index, preds=preds)
 
+        # 5) Convert hitsets into basf2 RecoTracks and add to store array
         for track, qi in zip(tracks, tracks_qi):
 
             # Select tensor with hits from track candidate
@@ -126,6 +129,12 @@ class GNNTracker(b2.Module):
 
             # Hits on first three layers
             x = track_hits[['x', 'y', 'z']].head(3).values
+
+            nVXDHits = (track_hits['layer'] < 5).sum()
+            requestVXD = False
+            if requestVXD and nVXDHits < 3:
+                print('Skip track because requested three vertex hits')
+                continue
 
             # Extrapolate the position and momentum to the point of the first hit on the helix
             # with uncertainties
@@ -152,12 +161,3 @@ class GNNTracker(b2.Module):
                 if trackingDetector == Belle2.RecoHitInformation.c_CDC:
                     newRecoTrack.addCDCHit(cdcHits[arrayIndex], hitCounter, Belle2.RecoHitInformation.RightLeftInformation.c_right)
                     hitCounter += 1
-
-                    # TODO: this is how the MCTrackFinder resolves the left/right ambiguity. Need to do something here as well
-                    # now determine the correct sign to resolve the left right ambiguity in the fitter
-                    # TVector3 simHitPos = aCDCSimHitPtr->getPosTrack();
-                    # TVector3 simMom = aCDCSimHitPtr->getMomentum();
-                    # TVector3 simHitPosOnWire = aCDCSimHitPtr->getPosWire();
-
-                    # CDC::CDCGeometryPar& cdcGeometry = CDC::CDCGeometryPar::Instance();
-                    # const unsigned short isRightHit = cdcGeometry.getNewLeftRightRaw(simHitPosOnWire, simHitPos, simMom);

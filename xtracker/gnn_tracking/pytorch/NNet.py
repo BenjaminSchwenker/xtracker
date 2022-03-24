@@ -1,10 +1,8 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 
 import os
@@ -274,6 +272,7 @@ class NNetWrapper(NeuralNet):
         return torch.sum((targets - outputs.view(-1)) ** 2) / targets.size()[0]
 
     def save_checkpoint(self, folder='checkpoint', filename='checkpoint.pth.tar'):
+        folder = os.path.expandvars(folder)
         filepath = os.path.join(folder, filename)
         if not os.path.exists(folder):
             print("Checkpoint Directory does not exist! Making directory {}".format(folder))
@@ -285,8 +284,8 @@ class NNetWrapper(NeuralNet):
         }, filepath)
 
     def load_checkpoint(self, folder='checkpoint', filename='checkpoint.pth.tar'):
-        # https://github.com/pytorch/examples/blob/master/imagenet/main.py#L98
         filepath = os.path.join(folder, filename)
+        filepath = os.path.expandvars(filepath)
         if not os.path.exists(filepath):
             raise ("No model in path {}".format(filepath))
         map_location = None if use_cuda else 'cpu'
