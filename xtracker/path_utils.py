@@ -1,10 +1,8 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 from basf2 import register_module
 
@@ -18,7 +16,7 @@ def add_vtx_track_finding_gnn(
     reco_tracks="RecoTracks",
     components=None,
     suffix="",
-    model_path="tracking/data/gnn_vtx",
+    model_path='you-forgot-to-set-path-to-saved-model',
     event_cuts={},
     segment_cuts={},
     tracker_config={},

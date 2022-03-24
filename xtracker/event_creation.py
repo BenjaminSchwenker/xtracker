@@ -1,10 +1,8 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 import numpy as np
 import pandas as pd
@@ -93,21 +91,17 @@ def make_event(cdcHits, vtxClusters, event_cuts):
 
     if event_cuts['UseCDCHits']:
 
-        # Have a close look at this singleton class in basf2: CDCWireHitTopology
-        # theCDCWireTopology = Belle2.TrackFindingCDC.CDCWireTopology.getInstance()
-        cdcGeoHelper = Belle2.CDCGeometryHelper()
-
         for hit in cdcHits:
 
             layer = hit.getICLayer() + event_cuts['OffsetCDC']
             detector_info.append((Belle2.RecoHitInformation.c_CDC, hit.getArrayIndex()))
 
-            wirePosF = cdcGeoHelper.wireForwardPosition(hit.getICLayer(), hit.getIWire(), 0)
-            wirePosB = cdcGeoHelper.wireBackwardPosition(hit.getICLayer(), hit.getIWire(), 0)
+            WireHit = Belle2.TrackFindingCDC.CDCWireHit(hit)
+            wirePos = WireHit.getRefPos3D()
 
-            wireX = 0.5 * (wirePosF.X() + wirePosB.X())
-            wireY = 0.5 * (wirePosF.Y() + wirePosB.Y())
-            wireZ = 0.5 * (wirePosF.Z() + wirePosB.Z())
+            wireX = wirePos.x()
+            wireY = wirePos.y()
+            wireZ = wirePos.z()
             wireT = hit.getTDCCount()
 
             hits['x'].append(wireX)
@@ -200,7 +194,7 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
                 tof = simHit.getGlobalTime()
 
                 delta = tof - time
-                if delta < 0:
+                if delta < -0.01:
                     print('Skipping VTXCluster because of negative delta tof={}'.format(delta))
                     continue
 
@@ -223,10 +217,6 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
                 hit_id += 1
 
             if hit_info.getTrackingDetector() == Belle2.RecoHitInformation.c_CDC and event_cuts['UseCDCHits']:
-
-                # Have a close look at this singleton class in basf2: CDCWireHitTopology
-                # theCDCWireTopology = Belle2.TrackFindingCDC.CDCWireTopology.getInstance()
-                cdcGeoHelper = Belle2.CDCGeometryHelper()
 
                 hit = hit_info.getRelated("CDCHits")
                 layer = hit.getICLayer() + event_cuts['OffsetCDC']
@@ -267,12 +257,12 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
                         print('Skipping all remaining hits because very long step length={}>20cm'.format(d1.Mag()))
                         break
 
-                wirePosF = cdcGeoHelper.wireForwardPosition(hit.getICLayer(), hit.getIWire(), 0)
-                wirePosB = cdcGeoHelper.wireBackwardPosition(hit.getICLayer(), hit.getIWire(), 0)
+                WireHit = Belle2.TrackFindingCDC.CDCWireHit(hit)
+                wirePos = WireHit.getRefPos3D()
 
-                wireX = 0.5 * (wirePosF.X() + wirePosB.X())
-                wireY = 0.5 * (wirePosF.Y() + wirePosB.Y())
-                wireZ = 0.5 * (wirePosF.Z() + wirePosB.Z())
+                wireX = wirePos.x()
+                wireY = wirePos.y()
+                wireZ = wirePos.z()
                 wireT = hit.getTDCCount()
 
                 used_cdc_hits.append(hit.getArrayIndex())
@@ -338,9 +328,6 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
             hit_id += 1
 
     if event_cuts['UseCDCHits']:
-        # Have a close look at this singleton class in basf2: CDCWireHitTopology
-        # theCDCWireTopology = Belle2.TrackFindingCDC.CDCWireTopology.getInstance()
-        cdcGeoHelper = Belle2.CDCGeometryHelper()
 
         for hit in cdcHits:
 
@@ -350,12 +337,12 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
             layer = hit.getICLayer() + event_cuts['OffsetCDC']
             detector_info.append((Belle2.RecoHitInformation.c_CDC, hit.getArrayIndex()))
 
-            wirePosF = cdcGeoHelper.wireForwardPosition(hit.getICLayer(), hit.getIWire(), 0)
-            wirePosB = cdcGeoHelper.wireBackwardPosition(hit.getICLayer(), hit.getIWire(), 0)
+            WireHit = Belle2.TrackFindingCDC.CDCWireHit(hit)
+            wirePos = WireHit.getRefPos3D()
 
-            wireX = 0.5 * (wirePosF.X() + wirePosB.X())
-            wireY = 0.5 * (wirePosF.Y() + wirePosB.Y())
-            wireZ = 0.5 * (wirePosF.Z() + wirePosB.Z())
+            wireX = wirePos.x()
+            wireY = wirePos.y()
+            wireZ = wirePos.z()
             wireT = hit.getTDCCount()
 
             hits['x'].append(wireX)

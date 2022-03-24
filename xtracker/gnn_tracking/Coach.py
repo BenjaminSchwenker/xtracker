@@ -1,10 +1,8 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 import logging
 import os
@@ -44,6 +42,8 @@ class Coach():
 
         self.summaries = None
         self.summary_file = None
+
+        self.args.training.checkpoint = os.path.expandvars(self.args.training.checkpoint)
 
     def executeEpisode(self):
         """

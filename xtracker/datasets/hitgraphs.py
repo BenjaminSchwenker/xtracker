@@ -1,10 +1,9 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
+
 
 """
 PyTorch specification for the hit graph dataset.
@@ -19,8 +18,19 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, random_split
 
-# Local imports
-from xtracker.datasets.graph import load_graph
+
+
+
+def load_graph(filename):
+    with np.load(filename) as f:
+        x, y, p = f['X'], f['y'], f['P']
+        Ri_rows, Ri_cols = f['Ri_rows'], f['Ri_cols']
+        Ro_rows, Ro_cols = f['Ro_rows'], f['Ro_cols']
+        n_edges = Ri_cols.shape[0]
+        edge_index = np.zeros((2, n_edges), dtype=int)
+        edge_index[0, Ro_cols] = Ro_rows
+        edge_index[1, Ri_cols] = Ri_rows
+    return x, edge_index, y, p
 
 
 class HitGraphDataset(Dataset):
@@ -63,31 +73,10 @@ def collate_fn(graphs):
     # Special handling of batch size 1
     if batch_size == 1:
         g = graphs[0]
-        # Prepend singleton batch dimension, convert inputs and target to torch
-        batch_inputs = [torch.from_numpy(m[None]).float() for m in [g.X, g.Ri, g.Ro]]
-        batch_target = torch.from_numpy(g.y[None]).float()
-        return batch_inputs, batch_target
+        x, edge_index, y, p = g
+        return [torch.from_numpy(m).float() for m in g]
 
-    # Get the matrix sizes in this batch
-    n_features = graphs[0].X.shape[1]
-    n_nodes = np.array([g.X.shape[0] for g in graphs])
-    n_edges = np.array([g.y.shape[0] for g in graphs])
-    max_nodes = n_nodes.max()
-    max_edges = n_edges.max()
-
-    # Allocate the tensors for this batch
-    batch_X = np.zeros((batch_size, max_nodes, n_features), dtype=np.float32)
-    batch_Ri = np.zeros((batch_size, max_nodes, max_edges), dtype=np.float32)
-    batch_Ro = np.zeros((batch_size, max_nodes, max_edges), dtype=np.float32)
-    batch_y = np.zeros((batch_size, max_edges), dtype=np.float32)
-
-    # Loop over samples and fill the tensors
-    for i, g in enumerate(graphs):
-        batch_X[i, :n_nodes[i]] = g.X
-        batch_Ri[i, :n_nodes[i], :n_edges[i]] = g.Ri
-        batch_Ro[i, :n_nodes[i], :n_edges[i]] = g.Ro
-        batch_y[i, :n_edges[i]] = g.y
-
-    batch_inputs = [torch.from_numpy(bm) for bm in [batch_X, batch_Ri, batch_Ro]]
-    batch_target = torch.from_numpy(batch_y)
-    return batch_inputs, batch_target
+    else:
+        print('Not supported ')
+        import sys
+        sys.exit(1)

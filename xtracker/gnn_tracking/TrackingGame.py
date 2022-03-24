@@ -1,10 +1,8 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 
 from .Game import Game
@@ -59,10 +57,12 @@ class TrackingGame(Game):
         else:
             batch = next(self.valid_data_loader)
 
+        x, edge_index, y, p = batch
+
         b = Board()
-        b.edge_index = batch.edge_index.numpy().copy()
-        b.x = batch.x.numpy().copy()
-        b.y = batch.y.numpy().copy()
+        b.edge_index = edge_index.numpy().copy()
+        b.x = x.numpy().copy()
+        b.y = y.numpy().copy()
         b.y_pred = np.ones_like(b.y)
 
         return b

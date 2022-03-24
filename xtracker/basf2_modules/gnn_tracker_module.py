@@ -1,10 +1,9 @@
-##########################################################################
-# xtracker                                                               #
-# Author: Benjamin Schwenker                                             #
-#                                                                        #
-# See git log for contributors and copyright holders.                    #
-# This file is licensed under LGPL-3.0, see LICENSE.md.                  #
-##########################################################################
+# xtracker (Neural network based trackfinding for Belle II)
+# Author: The xtracker developers
+#
+# See git log for contributors and copyright holders.
+# This file is licensed under GPLv3+ licence, see LICENSE.md.
+
 
 import numpy as np
 import pandas as pd
@@ -162,12 +161,3 @@ class GNNTracker(b2.Module):
                 if trackingDetector == Belle2.RecoHitInformation.c_CDC:
                     newRecoTrack.addCDCHit(cdcHits[arrayIndex], hitCounter, Belle2.RecoHitInformation.RightLeftInformation.c_right)
                     hitCounter += 1
-
-                    # TODO: this is how the MCTrackFinder resolves the left/right ambiguity. Need to do something here as well
-                    # now determine the correct sign to resolve the left right ambiguity in the fitter
-                    # TVector3 simHitPos = aCDCSimHitPtr->getPosTrack();
-                    # TVector3 simMom = aCDCSimHitPtr->getMomentum();
-                    # TVector3 simHitPosOnWire = aCDCSimHitPtr->getPosWire();
-
-                    # CDC::CDCGeometryPar& cdcGeometry = CDC::CDCGeometryPar::Instance();
-                    # const unsigned short isRightHit = cdcGeometry.getNewLeftRightRaw(simHitPosOnWire, simHitPos, simMom);
