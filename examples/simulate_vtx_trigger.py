@@ -119,9 +119,9 @@ def main():
     if args.bbbar:
         evtgenInput = path.add_module('EvtGenInput')
         evtgenInput.logging.log_level = b2.LogLevel.WARNING
-        add_collector_path(path, config, output_dir=output_dir, isSignalEvent=True)
+        add_collector_path(path, config, output_dir=output_dir, isSignalEvent=1.0)
     else:
-        add_collector_path(path, config, output_dir=output_dir, isSignalEvent=False)
+        add_collector_path(path, config, output_dir=output_dir, isSignalEvent=0.0)
 
     b2.print_path(path)
 

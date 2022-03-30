@@ -22,7 +22,7 @@ class TrackingEventCollector(b2.Module):
         cdcHitsColumnName='CDCHits',
         trackCandidatesColumnName="RecoTracks",
         mcTrackCandidatesColumName="MCRecoTracks",
-        isSignalEvent=True,
+        isSignalEvent=1.0,
     ):
         """Constructor"""
 
@@ -38,7 +38,7 @@ class TrackingEventCollector(b2.Module):
         self.trackCandidatesColumnName = trackCandidatesColumnName
         #: cached name of the MCRecoTracks StoreArray
         self.mcTrackCandidatesColumnName = mcTrackCandidatesColumName
-        #: cached value of signal event
+        #: cached flag for signal events
         self.isSignalEvent = isSignalEvent
 
     def initialize(self):

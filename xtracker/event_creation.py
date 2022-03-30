@@ -134,9 +134,6 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
     # Create an empty event data structure
     hits, truth, particles, detector_info, trigger = make_empty_event()
 
-    if not mcTrackCands:
-        return pd.DataFrame(hits), pd.DataFrame(truth), pd.DataFrame(particles), detector_info, pd.DataFrame(trigger)
-
     # Set mc trigger information
     trigger['isSignal'].append(isSignalEvent)
 

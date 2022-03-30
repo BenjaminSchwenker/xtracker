@@ -34,7 +34,7 @@ import yaml
 import numpy as np
 import pandas as pd
 
-from xtracker.datasets.graph import Graph, save_graphs
+from xtracker.datasets.graph import save_graphs
 from xtracker.graph_creation import make_graph
 
 
@@ -65,6 +65,7 @@ def process_event(
     hits = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'hits')
     truth = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'truth')
     particles = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'particles')
+    trigger = pd.read_hdf(os.path.expandvars(input_dir + '/event_id_{}.h5'.format(evtid)), 'trigger')
 
     # Read the data
     logging.info('Event %i, generate graph' % evtid)
@@ -73,6 +74,7 @@ def process_event(
         hits,
         truth,
         particles,
+        trigger,
         evtid,
         n_det_layers,
         pt_min,
