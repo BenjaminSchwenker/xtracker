@@ -104,7 +104,6 @@ def main():
     # ---------------------------------------------------------------------------------------
     path = b2.create_path()
 
-    n_events = 10
     eventinfosetter = path.add_module('EventInfoSetter')
     eventinfosetter.param("expList", [0])
     if args.bbbar:
