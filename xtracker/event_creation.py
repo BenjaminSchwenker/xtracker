@@ -6,18 +6,13 @@
 
 import numpy as np
 import pandas as pd
-import math
 import collections
 
 from ROOT import Belle2
 from ROOT import TVector3
 
 
-from tracking.validation.utilities import (
-    getHelixFromMCParticle,
-    get_det_hit_ids,
-    calc_ndf_from_det_hit_ids,
-)
+from tracking.validation.utilities import get_det_hit_ids
 
 
 def calc_dphi(phi1, phi2):
@@ -38,8 +33,9 @@ def make_empty_event():
     truth = {'hit_id': [], 'particle_id': [], 'weight': []}
     particles = {'vx': [], 'vy': [], 'vz': [], 'px': [], 'py': [], 'pz': [], 'q': [], 'nhits': [], 'particle_id': []}
     detector_info = []
+    trigger = {'isSignal': [], }
 
-    return hits, truth, particles, detector_info
+    return hits, truth, particles, detector_info, trigger
 
 
 def make_event(cdcHits, vtxClusters, event_cuts):
@@ -50,7 +46,7 @@ def make_event(cdcHits, vtxClusters, event_cuts):
     """
 
     # Create an empty event structure
-    hits, truth, particles, detector_info = make_empty_event()
+    hits, truth, particles, detector_info, trigger = make_empty_event()
 
     # Invent a dummy mother particle for hits, we do not use MC
     nid = -1
@@ -64,6 +60,9 @@ def make_event(cdcHits, vtxClusters, event_cuts):
     particles['vz'].append(0.0)
     particles['q'].append(0)
     particles['nhits'].append(0)
+
+    # Running counter used to enumerate all hits in this event
+    hit_id = 0
 
     if event_cuts['UseVTXHits']:
 
@@ -118,10 +117,10 @@ def make_event(cdcHits, vtxClusters, event_cuts):
 
             hit_id += 1
 
-    return pd.DataFrame(hits), pd.DataFrame(truth), pd.DataFrame(particles), detector_info
+    return pd.DataFrame(hits), pd.DataFrame(truth), pd.DataFrame(particles), detector_info, pd.DataFrame(trigger)
 
 
-def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, event_cuts):
+def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, event_cuts, isSignalEvent):
     """
     Returns event data from basf2 store arrays with reconstructed hits in tracking detectors.
 
@@ -133,11 +132,15 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
     """
 
     # Create an empty event data structure
-    hits, truth, particles, detector_info = make_empty_event()
+    hits, truth, particles, detector_info, trigger = make_empty_event()
 
     if not mcTrackCands:
-        return pd.DataFrame(hits), pd.DataFrame(truth), pd.DataFrame(particles), detector_info
+        return pd.DataFrame(hits), pd.DataFrame(truth), pd.DataFrame(particles), detector_info, pd.DataFrame(trigger)
 
+    # Set mc trigger information
+    trigger['isSignal'].append(isSignalEvent)
+
+    # Fill hits
     used_vtx_hits = []
     used_cdc_hits = []
 
@@ -147,18 +150,13 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
     for i, mcTrackCand in enumerate(mcTrackCands):
 
         mcParticle = trackMatchLookUp.getRelatedMCParticle(mcTrackCand)
-        mcHelix = getHelixFromMCParticle(mcParticle)
 
         momentum = mcParticle.getMomentum()
         vertex = mcParticle.getProductionVertex()
         charge = mcParticle.getCharge()
         time = mcParticle.getProductionTime()
 
-        pt = momentum.Perp()
-        tan_lambda = np.divide(1.0, math.tan(momentum.Theta()))  # Avoid zero division exception
-        d0 = mcHelix.getD0()
         det_hit_ids = get_det_hit_ids(mcTrackCand)
-        ndf = calc_ndf_from_det_hit_ids(det_hit_ids)
         nhits = len(det_hit_ids)
 
         particles['particle_id'].append(i)
@@ -173,9 +171,6 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
 
         # Buffer to keep previous two cdc sim hits
         cdcHitBuffer = collections.deque(maxlen=2)
-        last_valid = False
-        last_track_pos = np.nan
-        last_track_mom = np.nan
 
         # Loop over all hits
         for hit_info in mcTrackCand.getRelationsWith("RecoHitInformations"):
@@ -240,7 +235,6 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
                     break
 
                 simHitPos = simHit.getPosTrack()
-                simHitMom = simHit.getMomentum()
 
                 if len(cdcHitBuffer) > 1:
                     d1 = simHitPos - cdcHitBuffer[-1]
@@ -281,9 +275,6 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
                 truth['weight'].append(0)
 
                 cdcHitBuffer.append(simHitPos)
-                last_valid = True
-                last_track_pos = simHitPos
-                last_track_mom = simHitMom
 
                 time = tof
                 hit_id += 1
@@ -359,4 +350,4 @@ def make_event_with_mc(cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, eve
 
             hit_id += 1
 
-    return pd.DataFrame(hits), pd.DataFrame(truth), pd.DataFrame(particles), detector_info
+    return pd.DataFrame(hits), pd.DataFrame(truth), pd.DataFrame(particles), detector_info, pd.DataFrame(trigger)

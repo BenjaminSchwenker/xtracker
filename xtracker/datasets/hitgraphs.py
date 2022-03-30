@@ -9,16 +9,11 @@
 PyTorch specification for the hit graph dataset.
 """
 
-# System imports
+import sys
 import os
-import logging
-
-# External imports
 import numpy as np
 import torch
 from torch.utils.data import Dataset, random_split
-
-
 
 
 def load_graph(filename):
@@ -78,5 +73,4 @@ def collate_fn(graphs):
 
     else:
         print('Not supported ')
-        import sys
         sys.exit(1)
