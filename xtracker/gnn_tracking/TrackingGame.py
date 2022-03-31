@@ -8,11 +8,8 @@
 from .Game import Game
 from .TrackingLogic import Board
 
-# Externals
+
 import numpy as np
-import sklearn.metrics
-import torch
-from torch.utils.data import DataLoader
 from itertools import cycle
 
 
@@ -37,13 +34,14 @@ class TrackingGame(Game):
         Returns:
             startBoard: a representation of the initial board
         """
-        x, edge_index, y, p = batch
+        x, edge_index, y, p, trig = batch
 
         b = Board()
         b.edge_index = edge_index.copy()
         b.x = x.copy()
         b.y = y.copy()
         b.y_pred = np.ones_like(b.y)
+        b.trig = trig
 
         return b
 
@@ -57,13 +55,14 @@ class TrackingGame(Game):
         else:
             batch = next(self.valid_data_loader)
 
-        x, edge_index, y, p = batch
+        x, edge_index, y, p, trig = batch
 
         b = Board()
         b.edge_index = edge_index.numpy().copy()
         b.x = x.numpy().copy()
         b.y = y.numpy().copy()
         b.y_pred = np.ones_like(b.y)
+        b.trig = trig
 
         return b
 
@@ -81,6 +80,7 @@ class TrackingGame(Game):
         b.x = board.x
         b.y = board.y
         b.y_pred = np.copy(board.y)
+        b.trig = board.trig
         next_player = 1
         if stop:
             next_player = b.execute_stop()
@@ -100,6 +100,7 @@ class TrackingGame(Game):
         b.x = board.x
         b.y = board.y
         b.y_pred = np.copy(board.y_pred)
+        b.trig = board.trig
         next_player = b.execute_move(action)
         return (b, next_player)
 
@@ -117,6 +118,7 @@ class TrackingGame(Game):
         b.x = board.x
         b.y = board.y
         b.y_pred = np.copy(board.y_pred)
+        b.trig = board.trig
         next_player = b.execute_move_nostop(action)
         return (b, next_player)
 
