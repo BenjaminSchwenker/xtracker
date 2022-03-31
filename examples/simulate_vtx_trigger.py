@@ -17,6 +17,7 @@ geometry is set by the environment variable BELLE2_VTX_UPGRADE_GT.
 
 Usage:
 export BELLE2_VTX_UPGRADE_GT=upgrade_2022-01-21_vtx_5layer
+export BELLE2_VTX_BACKGROUND_DIR=path/to/overlay_files/
 basf2 simulate_vtx_trigger.py -- configs/belle2_vtx.yaml
 """
 
@@ -27,7 +28,7 @@ import yaml
 import basf2 as b2
 from simulation import add_simulation
 from xtracker.basf2_modules.event_collector_module import TrackingEventCollector
-from vtx import get_upgrade_globaltag
+from vtx import get_upgrade_globaltag, get_upgrade_background_files
 from tracking.path_utils import add_hit_preparation_modules
 
 
@@ -43,7 +44,7 @@ def parse_args():
 def add_collector_path(path, config, output_dir, isSignalEvent):
     """Adds all modules to path up to event collector module for sampling training events"""
 
-    add_simulation(path=path, useVTX=True, simulateT0jitter=False,)
+    add_simulation(path=path, bkgfiles=get_upgrade_background_files(), useVTX=True, simulateT0jitter=False,)
 
     add_hit_preparation_modules(
         path=path,
