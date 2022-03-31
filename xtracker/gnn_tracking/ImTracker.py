@@ -102,7 +102,7 @@ class ImTracker():
                 for istep in range(self.args.mid_steps):
                     active_edges = np.where(board.y_pred == 1)[0]
                     legal_moves = np.insert(active_edges, 0, -1)
-                    p, v, e_new = self.nnet.predict(board)
+                    p, v, e_new, trig = self.nnet.predict(board)
 
                     if self.args.update_e:
                         e[board.y_pred.astype(bool)] = e_new
@@ -124,9 +124,9 @@ class ImTracker():
             legal_moves = np.insert(active_edges, 0, -1)
 
             if it == 1:
-                p, v, e = self.nnet.predict(board)
+                p, v, e, trig = self.nnet.predict(board)
             else:
-                p, v, e_new = self.nnet.predict(board)
+                p, v, e_new, trig = self.nnet.predict(board)
                 if self.args.update_e:
                     e[board.y_pred.astype(bool)] = e_new
 
@@ -142,7 +142,7 @@ class ImTracker():
         if self.args.verbose:
             print("Game over: Turn ", str(it), "Result ", str(self.game.getGameScore(board)))
 
-        return board.y_pred, self.game.getGameScore(board)
+        return board.y_pred, self.game.getGameScore(board), board.trig_pred
 
     def reattach_edges(self, board, e=None):
         """Reattach active egdes to board.

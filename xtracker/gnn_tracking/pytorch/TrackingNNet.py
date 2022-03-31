@@ -14,9 +14,6 @@ vector p over all legal moves and a value v of the current board.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torch.autograd import Variable
-
 from torch_scatter import scatter_add
 
 
@@ -117,7 +114,7 @@ class GlobalNetwork(nn.Module):
         super(GlobalNetwork, self).__init__()
         # Setup the qvalue layers
         self.network = make_mlp(input_dim,
-                                [hidden_dim, hidden_dim, hidden_dim, 2],
+                                [hidden_dim, hidden_dim, hidden_dim, 3],
                                 hidden_activation=hidden_activation,
                                 output_activation=None,
                                 layer_norm=layer_norm)
@@ -184,9 +181,10 @@ class TrackingNNet(nn.Module):
 
         pi = torch.cat((g[0, 0].unsqueeze(0), e))
         v = g[0, 1].unsqueeze(0)
+        trig = g[0, 2].unsqueeze(0)
 
         # Return the output of policy and value heads
-        return F.log_softmax(pi, dim=0), torch.sigmoid(v), torch.sigmoid(a)
+        return F.log_softmax(pi, dim=0), torch.sigmoid(v), torch.sigmoid(a), torch.sigmoid(trig)
 
     def step_gnn(self, x, edge_index):
         # Previous hidden state

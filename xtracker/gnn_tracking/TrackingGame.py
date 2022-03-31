@@ -37,11 +37,12 @@ class TrackingGame(Game):
         x, edge_index, y, p, trig = batch
 
         b = Board()
-        b.edge_index = edge_index.copy()
-        b.x = x.copy()
-        b.y = y.copy()
+        b.edge_index = edge_index.numpy().copy()
+        b.x = x.numpy().copy()
+        b.y = y.numpy().copy()
         b.y_pred = np.ones_like(b.y)
-        b.trig = trig
+        b.trig = trig.numpy()
+        b.trig_pred = np.ones_like(b.trig)
 
         return b
 
@@ -63,6 +64,7 @@ class TrackingGame(Game):
         b.y = y.numpy().copy()
         b.y_pred = np.ones_like(b.y)
         b.trig = trig
+        b.trig_pred = np.ones_like(b.trig)
 
         return b
 
@@ -81,6 +83,7 @@ class TrackingGame(Game):
         b.y = board.y
         b.y_pred = np.copy(board.y)
         b.trig = board.trig
+        b.trig_pred = np.copy(board.trig)
         next_player = 1
         if stop:
             next_player = b.execute_stop()
@@ -101,6 +104,7 @@ class TrackingGame(Game):
         b.y = board.y
         b.y_pred = np.copy(board.y_pred)
         b.trig = board.trig
+        b.trig_pred = np.copy(board.trig_pred)
         next_player = b.execute_move(action)
         return (b, next_player)
 
@@ -119,6 +123,7 @@ class TrackingGame(Game):
         b.y = board.y
         b.y_pred = np.copy(board.y_pred)
         b.trig = board.trig
+        b.trig_pred = np.copy(board.trig_pred)
         next_player = b.execute_move_nostop(action)
         return (b, next_player)
 
@@ -220,3 +225,5 @@ class TrackingGame(Game):
     def display(board):
         print("Predicted segments: \n", board.y_pred)
         print("MC truth segments:  \n", board.y)
+        print("Predicted trigger: \n", board.trig_pred)
+        print("MC truth trigger:  \n", board.trig)

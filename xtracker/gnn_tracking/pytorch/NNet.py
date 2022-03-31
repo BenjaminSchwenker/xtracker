@@ -6,8 +6,6 @@
 
 
 import os
-import time
-
 import numpy as np
 from tqdm import tqdm
 
@@ -32,7 +30,7 @@ class NNetWrapper(NeuralNet):
 
     def train(self, examples, lr, epochs, batch_size):
         """
-        examples: list of examples, each example is of form (board, pi, v)
+        examples: list of examples, each example is of form (board, pi, v, trig)
         """
         optimizer = optim.Adam(self.nnet.parameters(), lr=lr)
 
@@ -41,60 +39,50 @@ class NNetWrapper(NeuralNet):
             self.nnet.train()
             pi_losses = AverageMeter()
             v_losses = AverageMeter()
+            trig_losses = AverageMeter()
 
             batch_count = int(len(examples) / batch_size)
 
             t = tqdm(range(batch_count), desc='Training Net')
             for _ in t:
                 sample_ids = np.random.randint(len(examples), size=batch_size)
-                boards, pis, vs = list(zip(*[examples[i] for i in sample_ids]))
+                boards, pis, vs, trigs = list(zip(*[examples[i] for i in sample_ids]))
 
                 # print('benni boards ', type(boards[0]))
                 # print('benni pis ', type(pis[0]))
                 # print('benni vs ', type(vs[0]))
+                # print('benni trigs ', type(trigs[0]))
 
-                # FIXME this is the old code kept for reference
-                # boards = torch.FloatTensor(np.array(boards).astype(np.float64))
                 edge_index = torch.LongTensor(boards[0].edge_index[:, boards[0].y_pred.astype(bool)])
                 x = torch.FloatTensor(boards[0].x)
 
                 target_pis = torch.FloatTensor(np.array(pis))
                 target_vs = torch.FloatTensor(np.array(vs).astype(np.float64))
+                target_trigs = torch.FloatTensor(np.array(trigs).astype(np.float64))
 
                 # print('target_pis ', target_pis.size())
                 # print('target_vs ', target_vs.size())
-                # START
-                # preparing input
-                # edge_index = torch.LongTensor(board.edge_index[:,board.y_pred.astype(bool)])
-                # x = torch.FloatTensor(board.x)
-
-                # FIXME: This is the old code, kept for reference
-                # board = torch.FloatTensor(board.astype(np.float64))
-                # if use_cuda: board = board.contiguous().cuda()
-                # board = board.view(1, self.board_x, self.board_y)
-                # END
+                # print('target_trigs ', target_trigs.size())
 
                 # predict
                 if use_cuda:
                     boards = boards.contiguous().cuda()
                     target_pis = target_pis.contiguous().cuda()
                     target_vs = target_vs.contiguous().cuda()
+                    target_trigs = target_trigs.contiguous().cuda()
 
                 # compute output
-                out_pi, out_v, out_e = self.nnet(x, edge_index)
-                # FIXME: old code kept for reference
-                # out_pi, out_v = self.nnet(boards)
+                out_pi, out_v, out_e, out_trig = self.nnet(x, edge_index)
                 l_pi = self.loss_pi(target_pis, out_pi)
                 l_v = self.loss_v(target_vs, out_v)
-                total_loss = l_pi + l_v
+                l_trig = self.loss_v(target_trigs, out_trig)
+                total_loss = l_pi + l_v + l_trig
 
                 # record loss
                 pi_losses.update(l_pi.item())
                 v_losses.update(l_v.item())
-                # FIXME: old code for reference
-                # pi_losses.update(l_pi.item(), boards.size(0))
-                # v_losses.update(l_v.item(), boards.size(0))
-                t.set_postfix(Loss_pi=pi_losses, Loss_v=v_losses)
+                trig_losses.update(l_trig.item())
+                t.set_postfix(Loss_pi=pi_losses, Loss_v=v_losses, Loss_trig=trig_losses)
 
                 # compute gradient and do SGD step
                 optimizer.zero_grad()
@@ -105,8 +93,6 @@ class NNetWrapper(NeuralNet):
         """
         board: np array with board
         """
-        # timing
-        start = time.time()
 
         # preparing input
         edge_index = torch.LongTensor(board.edge_index[:, board.y_pred.astype(bool)])
@@ -119,17 +105,14 @@ class NNetWrapper(NeuralNet):
 
         self.nnet.eval()
         with torch.no_grad():
-            pi, v, e = self.nnet(x, edge_index)
+            pi, v, e, trig = self.nnet(x, edge_index)
 
-        # print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
-        return torch.exp(pi).data.cpu().numpy(), v.data.cpu().numpy()[0], e.data.cpu().numpy()
+        return torch.exp(pi).data.cpu().numpy(), v.data.cpu().numpy()[0], e.data.cpu().numpy(), trig.data.cpu().numpy()
 
     def predict_e(self, board):
         """
         board: np array with board
         """
-        # timing
-        start = time.time()
 
         # preparing input
         edge_index = torch.LongTensor(board.edge_index[:, board.y_pred.astype(bool)])
@@ -148,15 +131,12 @@ class NNetWrapper(NeuralNet):
             logit_e = self.nnet.edge_network(x, edge_index)
             e = torch.sigmoid(logit_e)
 
-        # print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
         return e.data.cpu().numpy()
 
     def predict_cached(self, board):
         """
         board: np array with board
         """
-        # timing
-        start = time.time()
 
         # preparing input
         edge_index = torch.LongTensor(board.edge_index[:, board.y_pred.astype(bool)])
@@ -166,7 +146,6 @@ class NNetWrapper(NeuralNet):
         with torch.no_grad():
             xs, x_summed = self.nnet.forward_cached(x, edge_index)
 
-        # print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
         return [x.data.cpu().numpy() for x in xs], x_summed.data.cpu().numpy()
 
     def get_1hop_mask(self, edge_index, source):
@@ -180,8 +159,6 @@ class NNetWrapper(NeuralNet):
         """
         board: np array with board
         """
-        # timing
-        start = time.time()
 
         # preparing input
         edge_index = torch.LongTensor(edge_index)
@@ -205,15 +182,12 @@ class NNetWrapper(NeuralNet):
             # Update the sum of cached node embeddings
             x_sum += x_new.sum()
 
-        # print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
         return [x.data.cpu().numpy() for x in xs], x_sum.data.cpu().numpy()
 
     def predict_logits(self, edge_index, x):
         """
         board: np array with board
         """
-        # timing
-        start = time.time()
 
         # preparing input
         edge_index = torch.LongTensor(edge_index)
@@ -223,15 +197,12 @@ class NNetWrapper(NeuralNet):
         with torch.no_grad():
             e = self.nnet.prune_network(x, edge_index)
 
-        # print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
         return e.data.cpu().numpy()
 
     def predict_finalize_fast(self, edge_index, x, x_sum, e=None):
         """
         board: np array with board
         """
-        # timing
-        start = time.time()
 
         self.nnet.eval()
         with torch.no_grad():
@@ -244,15 +215,12 @@ class NNetWrapper(NeuralNet):
                 e = torch.FloatTensor(e)
                 pi, v, e = self.nnet.forward_finalize_fast(e, x_sum)
 
-        # print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
         return torch.exp(pi).data.cpu().numpy(), v.data.cpu().numpy()[0], e.data.cpu().numpy()
 
     def predict_finalize(self, board, x):
         """
         board: np array with board
         """
-        # timing
-        start = time.time()
 
         # preparing input
         edge_index = torch.LongTensor(board.edge_index[:, board.y_pred.astype(bool)])
@@ -262,10 +230,12 @@ class NNetWrapper(NeuralNet):
         with torch.no_grad():
             pi, v = self.nnet.forward_finalize(x, edge_index)
 
-        # print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
         return torch.exp(pi).data.cpu().numpy(), v.data.cpu().numpy()[0]
 
     def loss_pi(self, targets, outputs):
+        return -torch.sum(targets * outputs) / targets.size()[0]
+
+    def loss_trig(self, targets, outputs):
         return -torch.sum(targets * outputs) / targets.size()[0]
 
     def loss_v(self, targets, outputs):

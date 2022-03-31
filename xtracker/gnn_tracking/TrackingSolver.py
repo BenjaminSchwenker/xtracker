@@ -73,9 +73,9 @@ class TrackingSolver():
             pi = np.insert(pi_prime, 0, 0).astype(np.float32)
             pi = pi / pi.sum()
 
-        return pi, np.float32(v)
+        return pi, np.float32(v), board.trig
 
     def process(self, board):
         """Returns array with segment predictions and score"""
         preds = np.copy(board.y)
-        return preds, 1.0
+        return preds, 1.0, board.trig

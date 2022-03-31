@@ -18,7 +18,6 @@ from tqdm import tqdm
 
 from xtracker.gnn_tracking.Arena import Arena
 from xtracker.gnn_tracking.MCTS import MCTS
-from xtracker.gnn_tracking.SeqTracker import SeqTracker
 from xtracker.gnn_tracking.ImTracker import ImTracker
 from xtracker.gnn_tracking.TrackingSolver import TrackingSolver
 
@@ -57,8 +56,8 @@ class Coach():
         uses temp=0.
 
         Returns:
-            trainExamples: a list of examples of the form (board, currPlayer, pi,v)
-                           pi is the policy vector and v is the game score.
+            trainExamples: a list of examples of the form (board, currPlayer, pi, v, trig)
+                           pi is the policy vector and v is the game score and trig is the mc trigger
         """
         trainExamples = []
         board = self.game.getInitBoard()
@@ -83,9 +82,9 @@ class Coach():
             # Sample the training example
             if episodeStep == 1:
                 if np.random.rand() < self.args.training.pre_scale_examples:
-                    trainExamples.append([board, self.curPlayer, pi, None])
+                    trainExamples.append([board, self.curPlayer, pi, None, None])
             else:
-                trainExamples.append([board, self.curPlayer, pi, None])
+                trainExamples.append([board, self.curPlayer, pi, None, None])
 
             # Draw the number of steps (1,2,3 ..) until we sample
             # new step into trainExamples
@@ -99,7 +98,7 @@ class Coach():
                 if np.random.rand() < self.args.training.pre_stop_example:
                     board, self.curPlayer = self.game.getPerfectState(board, stop=False)
                     pi, _ = solver.predict(board)
-                    trainExamples.append([board, self.curPlayer, pi, None])
+                    trainExamples.append([board, self.curPlayer, pi, None, None])
                     print('Sample last action')
 
                 # Move into perfect state and stop game
@@ -114,7 +113,8 @@ class Coach():
 
             if self.game.getGameEnded(board, self.curPlayer):
                 r = self.game.getGameScore(board)
-                return [(x[0], x[2], r) for x in trainExamples]
+                trig = board.trig
+                return [(x[0], x[2], r, trig) for x in trainExamples]
 
     def learn(self):
         """

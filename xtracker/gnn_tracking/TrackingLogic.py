@@ -23,6 +23,7 @@ class Board():
     y: n_segments array with MC truth labels (True/False)
     y_pred: n_segments array with predicted labels (True/False)
     trig: mc target for trigger channel (0: bg only, 1: bg + bbbar)
+    trig_pred: prediction for trigger channel (0: bg only, 1: bg + bbbar)
     next_player: either 1 meaning game continues or 0 meaning game ends
 
     """
@@ -35,6 +36,7 @@ class Board():
         self.y = None
         self.y_pred = None
         self.trig = None
+        self.trig_pred = None
 
     def get_legal_moves(self, color=None):
         """
