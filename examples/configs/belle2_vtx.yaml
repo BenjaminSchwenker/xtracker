@@ -22,7 +22,7 @@ mctrackfinder:
         
 # Event data selection cuts 
 event_cuts: 
-    UseCDCHits: True
+    UseCDCHits: False
     UseSVDHits: False
     UsePXDHits: False
     UseVTXHits: True
