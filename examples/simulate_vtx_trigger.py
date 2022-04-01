@@ -15,10 +15,12 @@ The simulated detector uses the upgraded vertex detector with a fully pixelated
 vertex detector (VTX) and the current Central Drift Chamber (CDC). The exact detector
 geometry is set by the environment variable BELLE2_VTX_UPGRADE_GT.
 
-Usage:
+Usage: Set environment variabel for GT and background files. Execute two times for bg and bg+bbbar
+
 export BELLE2_VTX_UPGRADE_GT=upgrade_2022-01-21_vtx_5layer
 export BELLE2_VTX_BACKGROUND_DIR=path/to/overlay_files/
-basf2 simulate_vtx_trigger.py -- configs/belle2_vtx.yaml
+basf2 simulate_vtx_trigger.py -- configs/belle2_vtx_trigger.yaml --bbbar
+basf2 simulate_vtx_trigger.py -- configs/belle2_vtx_trigger.yaml 
 """
 
 import argparse
@@ -36,7 +38,7 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('simulate_vtx_trigger.py')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/belle2_vtx.yaml')
+    add_arg('config', nargs='?', default='configs/belle2_vtx_trigger.yaml')
     add_arg('--bbbar', action='store_true', help='Simulate BBBar events as signal')
     return parser.parse_args()
 

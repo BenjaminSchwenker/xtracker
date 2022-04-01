@@ -73,7 +73,7 @@ class Coach():
             # Compute policy for next step
             if self.args.training.supervised_training:
                 # Imitation learning
-                pi, _ = solver.predict(board)
+                pi, _, _ = solver.predict(board)
             else:
                 # Alpha zero learning
                 temp = int(episodeStep < self.args.training.tempThreshold)

@@ -48,6 +48,9 @@ def make_event(cdcHits, vtxClusters, event_cuts):
     # Create an empty event structure
     hits, truth, particles, detector_info, trigger = make_empty_event()
 
+    # Set dummy trigger information
+    trigger['isSignal'].append(1.0)
+
     # Invent a dummy mother particle for hits, we do not use MC
     nid = -1
 

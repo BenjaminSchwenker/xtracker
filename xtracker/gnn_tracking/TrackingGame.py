@@ -41,7 +41,24 @@ class TrackingGame(Game):
         b.x = x.numpy().copy()
         b.y = y.numpy().copy()
         b.y_pred = np.ones_like(b.y)
-        b.trig = trig.numpy()
+        b.trig = trig.numpy.copy()
+        b.trig_pred = np.ones_like(b.trig)
+
+        return b
+
+    def getInitBoardFromGraph(self, graph):
+        """
+        Returns:
+            startBoard: a representation of the initial graph
+        """
+        x, edge_index, y, p, trig = graph
+
+        b = Board()
+        b.edge_index = edge_index.copy()
+        b.x = x.copy()
+        b.y = y.copy()
+        b.y_pred = np.ones_like(b.y)
+        b.trig = trig.copy()
         b.trig_pred = np.ones_like(b.trig)
 
         return b

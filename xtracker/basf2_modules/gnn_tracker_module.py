@@ -54,13 +54,7 @@ class GNNTracker(b2.Module):
         self.cdcHitsColumnname = cdcHitsColumnName
         #: cached name of the RecoTracks StoreArray
         self.trackCandidatesColumnName = trackCandidatesColumnName
-        #: cached for collecting mc event data
-        self.collect_mc = False
-
-        if self.tracker_config['useMC'] or self.tracker_config['useMC']:
-            B2WARNING("Add MC truth information to xtracker event data => Debug mode.")
-            self.collect_mc = False
-
+        
     def initialize(self):
         """Receive signal at the start of event processing"""
 
@@ -89,21 +83,28 @@ class GNNTracker(b2.Module):
 
         cdcHits = Belle2.PyStoreArray(self.cdcHitsColumnname)
         vtxClusters = Belle2.PyStoreArray("VTXClusters")
-
+        
         # 1) Create event data
-        if self.collect_mc:
-            hits, truth, particles, detector_info = make_event(cdcHits, vtxClusters, self.event_cuts)
-        else:
+        if self.tracker_config['useMC'] or self.segment_cuts['useMC']:
             mcTrackCands = Belle2.PyStoreArray("MCRecoTracksHelpMe")
             trackMatchLookUp = Belle2.TrackMatchLookUp("MCRecoTracksHelpMe", "RecoTracks")
-            hits, truth, particles, detector_info = make_event_with_mc(
-                cdcHits, vtxClusters, trackMatchLookUp, mcTrackCands, self.event_cuts)
-
+            hits, truth, particles, detector_info, trigger = make_event_with_mc(
+                cdcHits, 
+                vtxClusters, 
+                trackMatchLookUp, 
+                mcTrackCands, 
+                self.event_cuts,
+                trig=1.0, 
+            )
+        else:
+            hits, truth, particles, detector_info, trigger = make_event(cdcHits, vtxClusters, self.event_cuts)
+            
         # 2) Make hit graph for event data
         graphs, IDs = make_graph(
             hits,
             truth,
             particles,
+            trigger, 
             evtid,
             **self.segment_cuts,
             phi_range=(-np.pi, np.pi),
@@ -111,8 +112,8 @@ class GNNTracker(b2.Module):
 
         # 3) Process the hitgraph
         batch = get_batch(graph_to_sparse(graphs[0]))
-        board = self.game.getInitBoardFromBatch(batch)
-        preds, score = self.tracker.process(board)
+        board = self.game.getInitBoardFromGraph(batch)
+        preds, score, trig = self.tracker.process(board)
 
         # 4) Create hitsets from processed hitgraph
         tracks, tracks_qi = compute_tracks_from_graph_ml(board.x, board.edge_index, preds=preds)
