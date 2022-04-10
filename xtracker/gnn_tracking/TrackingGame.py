@@ -41,7 +41,7 @@ class TrackingGame(Game):
         b.x = x.numpy().copy()
         b.y = y.numpy().copy()
         b.y_pred = np.ones_like(b.y)
-        b.trig = trig.numpy.copy()
+        b.trig = trig.numpy().copy()
         b.trig_pred = np.ones_like(b.trig)
 
         return b
