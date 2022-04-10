@@ -167,7 +167,7 @@ the tracking/validation folder of your basf2 installation.
 
 ```
 cp <b2>/xtracker/examples/validation_scripts/*.py <b2>/development/tracking/validation/
-export XTRACKER_CONFIG_PATH=<b2>/xtracker/examples/configs
+export XTRACKER_CONFIG_PATH=<b2>/xtracker/examples/configs/configfile.yaml
 ```
 
 Now we can simple use the `b2validation` command to execute a validation run. The environment 
@@ -176,10 +176,12 @@ model resides.
 
 
 ```
-b2validation -s  upgradeVTXOnlyTrackingValidation.py -o '-n 20'     
+export BELLE2_VTX_UPGRADE_GT=upgrade_2022-01-21_vtx_5layer
+export BELLE2_VTX_BACKGROUND_DIR=/path/to/bgfiles/
+b2validation -s  upgradeVTXOnlyTrackingValidation.py upgradeVTXOnlyTrackingValidationBkg.py 
 ```
 
-You can execute the command wherever you want. The option `-o '-n 20'` forces basf2 to validate on 20
+You can add the option `-o '-n 20'` which forces basf2 to validate on 20
 events. This is good for fast testing. A more reasonable number is 1000 events.  
 
 5. 

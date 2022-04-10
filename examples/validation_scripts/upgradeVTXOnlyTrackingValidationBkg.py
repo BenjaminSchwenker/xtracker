@@ -36,7 +36,7 @@ def setupFinderModule(path):
 
     import yaml
     import os
-    config_path = os.path.expandvars("${XTRACKER_CONFIG_PATH}/belle2_vtx.yaml")
+    config_path = os.path.expandvars("${XTRACKER_CONFIG_PATH}")
 
     with open(config_path) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
