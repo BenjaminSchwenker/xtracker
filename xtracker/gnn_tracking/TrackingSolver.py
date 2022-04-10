@@ -38,7 +38,7 @@ class TrackingSolver():
     def predict(self, board):
         """
         Returns predicted policy array and score.
-        Note that policy array has one item more than segments on the board. THis item represents the stop move.
+        Note that policy array has one item more than segments on the board. This item represents the stop move.
         """
 
         legal_moves = board.get_legal_moves()
