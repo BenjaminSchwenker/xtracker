@@ -1,9 +1,10 @@
 # Global parameters 
 global:
-    n_events: 1000 #5000                                        # Number of events to simulate 
-    rndseed: 12345                                              # Random seed 
-    event_dir: ${HEP_DATA}/events_belle2_vtx_trigger            # Path to events
-    graph_dir: ${HEP_DATA}/hitgraphs_belle2_vtx_trigger         # Path to hit graphs 
+    n_events: 1000 #5000                                                # Number of events to simulate
+    rndseed: 12345                                                      # Random seed
+    event_dir: ${HEP_DATA}/events_belle2_vtx_trigger                    # Path to events
+    graph_dir: ${HEP_DATA}/hitgraphs_belle2_vtx_trigger                 # Path to hit graphs
+    tracker_config: ${XTRACKER_CONFIG_PATH}                             # Path to tracker config
 
 # basf2 MC trackfinder params 
 mctrackfinder:

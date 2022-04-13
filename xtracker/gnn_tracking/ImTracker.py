@@ -196,6 +196,17 @@ class ImTracker():
         # Reopen the game
         board.next_player = 1
 
+    def embed_hits(self, board):
+        """
+        This computes a batch of gnn embedings for all hits in a event (board)
+
+        Returns:
+            x: batch of hit embeddings
+        """
+
+        x = self.nnet.predict_event_embedding(board)
+        return x
+
 
 def get_degrees(num_nodes, edge_index):
     start, end = torch.LongTensor(edge_index)

@@ -176,8 +176,6 @@ class TrackingGame(Game):
         Returns:
             v: Game score
         """
-        # FIXME: Old stuff, remove it at some point
-        # return sklearn.metrics.accuracy_score(board.y, board.y_pred)
 
         # Here is the moment to remove all wrong edges
         true_edge_index = board.edge_index[:, board.y.astype(bool)]

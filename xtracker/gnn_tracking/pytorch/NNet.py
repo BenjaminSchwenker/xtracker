@@ -16,6 +16,7 @@ import torch
 import torch.optim as optim
 
 from .TrackingNNet import TrackingNNet as tnet
+from .TrackingNNet import TriggerNNetwork
 
 use_cuda = torch.cuda.is_available()
 
@@ -75,7 +76,7 @@ class NNetWrapper(NeuralNet):
                 out_pi, out_v, out_e, out_trig = self.nnet(x, edge_index)
                 l_pi = self.loss_pi(target_pis, out_pi)
                 l_v = self.loss_v(target_vs, out_v)
-                l_trig = self.loss_v(target_trigs, out_trig)
+                l_trig = self.loss_trig(target_trigs, out_trig)
                 total_loss = l_pi + l_v + l_trig
 
                 # record loss
@@ -98,18 +99,13 @@ class NNetWrapper(NeuralNet):
         edge_index = torch.LongTensor(board.edge_index[:, board.y_pred.astype(bool)])
         x = torch.FloatTensor(board.x)
 
-        # FIXME: This is the old code, kept for reference
-        # board = torch.FloatTensor(board.astype(np.float64))
-        # if use_cuda: board = board.contiguous().cuda()
-        # board = board.view(1, self.board_x, self.board_y)
-
         self.nnet.eval()
         with torch.no_grad():
             pi, v, e, trig = self.nnet(x, edge_index)
 
         return torch.exp(pi).data.cpu().numpy(), v.data.cpu().numpy()[0], e.data.cpu().numpy(), trig.data.cpu().numpy()
 
-    def predict_e(self, board):
+    def predict_event_embedding(self, board):
         """
         board: np array with board
         """
@@ -120,117 +116,9 @@ class NNetWrapper(NeuralNet):
 
         self.nnet.eval()
         with torch.no_grad():
+            xs = self.nnet.forward_embed(x, edge_index)
 
-            # Apply input network to get hidden representation
-            x = self.nnet.input_network(x)
-
-            # Loop over message passing layers
-            for _ in range(self.nnet.n_graph_iters):
-                x = self.nnet.step_gnn(x, edge_index)
-
-            logit_e = self.nnet.edge_network(x, edge_index)
-            e = torch.sigmoid(logit_e)
-
-        return e.data.cpu().numpy()
-
-    def predict_cached(self, board):
-        """
-        board: np array with board
-        """
-
-        # preparing input
-        edge_index = torch.LongTensor(board.edge_index[:, board.y_pred.astype(bool)])
-        x = torch.FloatTensor(board.x)
-
-        self.nnet.eval()
-        with torch.no_grad():
-            xs, x_summed = self.nnet.forward_cached(x, edge_index)
-
-        return [x.data.cpu().numpy() for x in xs], x_summed.data.cpu().numpy()
-
-    def get_1hop_mask(self, edge_index, source):
-        """
-        Get edge mask for 1hop graph around source
-        """
-        mask = ((edge_index[0, :] == source) | (edge_index[1, :] == source))
-        return mask
-
-    def predict_embed(self, edge_index, last_xs, last_x_sum, node_mask):
-        """
-        board: np array with board
-        """
-
-        # preparing input
-        edge_index = torch.LongTensor(edge_index)
-        xs = [torch.FloatTensor(last_x) for last_x in last_xs]
-        x_sum = torch.FloatTensor(last_x_sum)
-
-        self.nnet.eval()
-        with torch.no_grad():
-
-            # Update the sum of cached node embeddings
-            x_sum -= xs[-1][node_mask].sum()
-
-            for i in range(self.nnet.n_graph_iters):
-                x = xs[i]
-
-                x_new = self.nnet.node_step(x, edge_index, node_mask)
-
-                # Update the cached node embeddings
-                xs[i + 1][node_mask] = x_new
-
-            # Update the sum of cached node embeddings
-            x_sum += x_new.sum()
-
-        return [x.data.cpu().numpy() for x in xs], x_sum.data.cpu().numpy()
-
-    def predict_logits(self, edge_index, x):
-        """
-        board: np array with board
-        """
-
-        # preparing input
-        edge_index = torch.LongTensor(edge_index)
-        x = torch.FloatTensor(x)
-
-        self.nnet.eval()
-        with torch.no_grad():
-            e = self.nnet.prune_network(x, edge_index)
-
-        return e.data.cpu().numpy()
-
-    def predict_finalize_fast(self, edge_index, x, x_sum, e=None):
-        """
-        board: np array with board
-        """
-
-        self.nnet.eval()
-        with torch.no_grad():
-            if e is None:
-                edge_index = torch.LongTensor(edge_index)
-                x = torch.FloatTensor(x)
-                pi, v, e = self.nnet.forward_finalize(x, edge_index)
-            else:
-                x_sum = torch.FloatTensor(x_sum)
-                e = torch.FloatTensor(e)
-                pi, v, e = self.nnet.forward_finalize_fast(e, x_sum)
-
-        return torch.exp(pi).data.cpu().numpy(), v.data.cpu().numpy()[0], e.data.cpu().numpy()
-
-    def predict_finalize(self, board, x):
-        """
-        board: np array with board
-        """
-
-        # preparing input
-        edge_index = torch.LongTensor(board.edge_index[:, board.y_pred.astype(bool)])
-        x = torch.FloatTensor(x)
-
-        self.nnet.eval()
-        with torch.no_grad():
-            pi, v = self.nnet.forward_finalize(x, edge_index)
-
-        return torch.exp(pi).data.cpu().numpy(), v.data.cpu().numpy()[0]
+        return xs.data.cpu().numpy()
 
     def loss_pi(self, targets, outputs):
         return -torch.sum(targets * outputs) / targets.size()[0]
@@ -240,6 +128,93 @@ class NNetWrapper(NeuralNet):
 
     def loss_v(self, targets, outputs):
         return torch.sum((targets - outputs.view(-1)) ** 2) / targets.size()[0]
+
+    def save_checkpoint(self, folder='checkpoint', filename='checkpoint.pth.tar'):
+        folder = os.path.expandvars(folder)
+        filepath = os.path.join(folder, filename)
+        if not os.path.exists(folder):
+            print("Checkpoint Directory does not exist! Making directory {}".format(folder))
+            os.mkdir(folder)
+        else:
+            print("Checkpoint Directory exists! ")
+        torch.save({
+            'state_dict': self.nnet.state_dict(),
+        }, filepath)
+
+    def load_checkpoint(self, folder='checkpoint', filename='checkpoint.pth.tar'):
+        filepath = os.path.join(folder, filename)
+        filepath = os.path.expandvars(filepath)
+        if not os.path.exists(filepath):
+            raise ("No model in path {}".format(filepath))
+        map_location = None if use_cuda else 'cpu'
+        checkpoint = torch.load(filepath, map_location=map_location)
+        self.nnet.load_state_dict(checkpoint['state_dict'])
+
+
+class NNetWrapperTrigger(NeuralNet):
+    def __init__(self):
+        self.nnet = TriggerNNetwork(input_dim=64, hidden_dim=64,
+                                    hidden_activation='ReLU', layer_norm=True)
+
+        if use_cuda:
+            self.nnet.cuda()
+
+    def train(self, examples, lr, epochs, batch_size):
+        """
+        examples: list of examples, each example is of form (x, y)
+        """
+        optimizer = optim.Adam(self.nnet.parameters(), lr=lr)
+
+        loss_fn = torch.nn.BCELoss()
+
+        for epoch in range(epochs):
+            print('EPOCH ::: ' + str(epoch + 1))
+            self.nnet.train()
+            trig_losses = AverageMeter()
+
+            batch_count = int(len(examples) / batch_size)
+
+            t = tqdm(range(batch_count), desc='Training Net')
+            for _ in t:
+                sample_ids = np.random.randint(len(examples), size=batch_size)
+                x, y = list(zip(*[examples[i] for i in sample_ids]))
+
+                x = torch.FloatTensor(x[0])
+                y = torch.FloatTensor(y[0])
+
+                # predict
+                if use_cuda:
+                    x = x.contiguous().cuda()
+                    y = y.contiguous().cuda()
+
+                # compute output
+                output = self.nnet(x)
+
+                # calculate loss
+                loss = loss_fn(output, y.reshape(-1, 1))
+
+                # record loss
+                trig_losses.update(loss.item())
+                t.set_postfix(Loss_trig=trig_losses)
+
+                # compute gradient and do SGD step
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+    def predict(self, x):
+        """
+        x: np array
+        """
+
+        # preparing input
+        x = torch.FloatTensor(x)
+
+        self.nnet.eval()
+        with torch.no_grad():
+            trig = self.nnet(x)
+
+        return trig.data.cpu().numpy()
 
     def save_checkpoint(self, folder='checkpoint', filename='checkpoint.pth.tar'):
         folder = os.path.expandvars(folder)

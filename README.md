@@ -184,11 +184,37 @@ b2validation -s  upgradeVTXOnlyTrackingValidation.py upgradeVTXOnlyTrackingValid
 You can add the option `-o '-n 20'` which forces basf2 to validate on 20
 events. This is good for fast testing. A more reasonable number is 1000 events.  
 
-5. 
+You can find the output .root files and output log files with the figures of merit for tracking
+in the folder results/current/tracking. 
+
+
+5. Training a vertex detector trigger 
+
+The graph neural network also produces a fixed size event embedding. This event embedding contains 
+a lot of information about the tracks present in the event (using VTX hits integrated over 100ns) 
+and can be the basis of creating a vertex detector track trigger.   
 
 ```
-basf2 test_belle2.py -n 10 -- configs/belle2_vtx.yaml
+# Setup environement. 
+export BELLE2_VTX_UPGRADE_GT=upgrade_2022-01-21_vtx_5layer
+export BELLE2_VTX_BACKGROUND_DIR=/path/to/bgfiles/
+export XTRACKER_CONFIG_PATH=<b2>/xtracker/examples/configs/configfile.yaml
+export HEP_DATA=<some/path/with/storage>
+
+# Create simulated event data (BGONLY event and BG+BBBAR events) 
+basf2 simulate_vtx_trigger.py -- configs/belle2_vtx_trigger.yaml --bbbar
+basf2 simulate_vtx_trigger.py -- configs/belle2_vtx_trigger.yaml 
+
+# Prepara sample of hit graphs
+python3 prepare_graphs.py configs/belle2_vtx_trigger.yaml --n-workers=3
+
+# Train the vtx trigger 
+python3 train_vtx_trigger.py  configs/belle2_vtx_trigger.yaml
 ```
+
+XTRACKER_CONFIG_PATH points to config .yaml file used for training the tracker and will now be used to 
+compute the event embeddings. 
+
 
 
 ### Who do I talk to? ###
