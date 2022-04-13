@@ -13,30 +13,12 @@ This file contains some common helper code for the analysis notebooks.
 """
 
 import os
-import yaml
-import pickle
 from collections import namedtuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn.metrics
-import torch
-from torch.utils.data import Subset, DataLoader
-
-
-def get_dataset(config):
-    from xtracker.datasets.hitgraphse import HitGraphDataset
-    return xtracker.datasets.hitgraphs.HitGraphDataset(get_input_dir(config))
-
-
-def get_test_data_loader(config, n_test=16, batch_size=1):
-    # Take the test set from the back
-    full_dataset = get_dataset(config)
-    test_indices = len(full_dataset) - 1 - torch.arange(n_test)
-    test_dataset = Subset(full_dataset, test_indices.tolist())
-    return DataLoader(test_dataset, batch_size=batch_size,
-                      collate_fn=Batch.from_data_list)
 
 
 def load_summaries(output_dir):
@@ -52,8 +34,8 @@ Metrics = namedtuple('Metrics', ['accuracy', 'precision', 'recall', 'f1',
 
 def convert_to_sparse_tuple(graph):
     """Convert dense graph to sparse tuple"""
-    import xtracker.datasets.graph
-    f = datasets.graph.graph_to_sparse(graph)
+    import xtracker.datasets
+    f = xtracker.datasets.graph.graph_to_sparse(graph)
 
     x, y = f['X'], f['y']
     Ri_rows, Ri_cols = f['Ri_rows'], f['Ri_cols']
@@ -115,14 +97,14 @@ def plot_train_history(summaries, figsize=(12, 10), loss_yscale='linear'):
     plt.tight_layout()
 
 
-def plot_metrics(preds, targets, metrics):
+def plot_metrics(preds, targets, metrics, figsize=(16, 5)):
     # Prepare the values
     preds = np.concatenate(preds)
     targets = np.concatenate(targets)
     labels = targets > 0.5
 
     # Create the figure
-    fig, (ax0, ax1, ax2) = plt.subplots(ncols=3, figsize=(16, 5))
+    fig, (ax0, ax1, ax2) = plt.subplots(ncols=3, figsize=figsize)
 
     # Plot the model outputs
     binning = dict(bins=25, range=(0, 1), histtype='step', log=True)
