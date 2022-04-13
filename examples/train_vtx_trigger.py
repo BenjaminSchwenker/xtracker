@@ -12,11 +12,11 @@ Performs training of xtracker neural net using prepared training samples
 defined in train config file.
 
 Usage:
-python3 train.py  configs/belle2_vtx.yaml
-
-or
-
-python3 train.py  configs/toytracker.yaml
+export BELLE2_VTX_UPGRADE_GT=upgrade_2022-01-21_vtx_5layer
+export BELLE2_VTX_BACKGROUND_DIR=/path/to/bgfiles/
+export XTRACKER_CONFIG_PATH=<b2>/xtracker/examples/configs/configfile.yaml
+export HEP_DATA=<some/path/with/storage>
+python3 train_vtx_trigger.py  configs/belle2_vtx_trigger.yaml
 """
 
 
@@ -24,24 +24,24 @@ import logging
 import yaml
 import argparse
 import os
+import pickle
 
 import torch
 import numpy as np
 import random
-import pickle
 
-from xtracker.gnn_tracking.Coach import Coach
+from xtracker.gnn_tracking.CoachTrigger import CoachTrigger
 from xtracker.gnn_tracking.TrackingGame import TrackingGame as Game
-from xtracker.gnn_tracking.pytorch.NNet import NNetWrapper as nn
+from xtracker.gnn_tracking.pytorch.NNet import NNetWrapperTrigger as nn
 from xtracker.datasets import get_data_loaders
 from xtracker.utils import dotdict
 
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser('train.py')
+    parser = argparse.ArgumentParser('train_vtx_trigger.py')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/belle2_vtx.yaml')
+    add_arg('config', nargs='?', default='configs/belle2_vtx_trigger.yaml')
     return parser.parse_args()
 
 
@@ -59,6 +59,32 @@ def save_config(config):
     logging.info('Writing config via pickle to %s', config_file)
     with open(config_file, 'wb') as f:
         pickle.dump(config, f)
+
+
+def setupTracker(game, config_path):
+    from xtracker.gnn_tracking.pytorch.NNet import NNetWrapper as tnet
+    from xtracker.gnn_tracking.ImTracker import ImTracker
+    import yaml
+    import os
+
+    config_path = os.path.expandvars(config_path)
+
+    with open(config_path) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    tracker_args = dotdict(config['model'])
+
+    # Need to adjust this to checkpoints from training on graphs
+    checkpoint_dir = os.path.expandvars(config['training']['checkpoint'])
+
+    # Load neural net
+    n1 = tnet()
+    n1.load_checkpoint(checkpoint_dir, 'best.pth.tar')
+
+    # Built a tracker
+    tracker = ImTracker(game, n1, tracker_args)
+
+    return tracker
 
 
 def main():
@@ -97,6 +123,10 @@ def main():
     g = Game(train_data_loader, valid_data_loader)
     logging.info('Loaded %s...', Game.__name__)
 
+    # Setup pretrained tracker
+    tracker = setupTracker(g, config_path=config['global']['tracker_config'])
+
+    # Setup untrained trigger
     nnet = nn()
     logging.info('Loaded %s...', nn.__name__)
 
@@ -107,7 +137,7 @@ def main():
         logging.warning('Not loading a checkpoint!')
 
     logging.info('Loading the Coach...')
-    c = Coach(g, nnet, args)
+    c = CoachTrigger(g, tracker, nnet, args)
 
     if args.training.load_model:
         logging.info("Loading 'trainExamples' from file...")

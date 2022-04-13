@@ -9,28 +9,24 @@
 PyTorch specification for the hit graph dataset.
 """
 
-# System imports
+import sys
 import os
-import logging
-
-# External imports
 import numpy as np
 import torch
 from torch.utils.data import Dataset, random_split
 
 
-
-
 def load_graph(filename):
     with np.load(filename) as f:
         x, y, p = f['X'], f['y'], f['P']
+        trig = f['trig']
         Ri_rows, Ri_cols = f['Ri_rows'], f['Ri_cols']
         Ro_rows, Ro_cols = f['Ro_rows'], f['Ro_cols']
         n_edges = Ri_cols.shape[0]
         edge_index = np.zeros((2, n_edges), dtype=int)
         edge_index[0, Ro_cols] = Ro_rows
         edge_index[1, Ri_cols] = Ri_rows
-    return x, edge_index, y, p
+    return x, edge_index, y, p, trig
 
 
 class HitGraphDataset(Dataset):
@@ -73,10 +69,8 @@ def collate_fn(graphs):
     # Special handling of batch size 1
     if batch_size == 1:
         g = graphs[0]
-        x, edge_index, y, p = g
         return [torch.from_numpy(m).float() for m in g]
 
     else:
         print('Not supported ')
-        import sys
         sys.exit(1)

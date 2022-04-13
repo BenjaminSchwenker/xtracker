@@ -7,7 +7,6 @@
 
 from ROOT import Belle2
 import basf2 as b2
-import pandas as pd
 
 from xtracker.event_creation import make_event_with_mc
 
@@ -23,6 +22,7 @@ class TrackingEventCollector(b2.Module):
         cdcHitsColumnName='CDCHits',
         trackCandidatesColumnName="RecoTracks",
         mcTrackCandidatesColumName="MCRecoTracks",
+        isSignalEvent=1.0,
     ):
         """Constructor"""
 
@@ -38,6 +38,8 @@ class TrackingEventCollector(b2.Module):
         self.trackCandidatesColumnName = trackCandidatesColumnName
         #: cached name of the MCRecoTracks StoreArray
         self.mcTrackCandidatesColumnName = mcTrackCandidatesColumName
+        #: cached flag for signal events
+        self.isSignalEvent = isSignalEvent
 
     def initialize(self):
         """Receive signal at the start of event processing"""
@@ -55,10 +57,17 @@ class TrackingEventCollector(b2.Module):
         vtxClusters = Belle2.PyStoreArray("VTXClusters")
         mcTrackCands = Belle2.PyStoreArray(self.mcTrackCandidatesColumnName)
 
-        hits, truth, particles, detector_info = make_event_with_mc(
-            cdcHits, vtxClusters, self.trackMatchLookUp, mcTrackCands, self.event_cuts)
+        hits, truth, particles, detector_info, trigger = make_event_with_mc(
+            cdcHits,
+            vtxClusters,
+            self.trackMatchLookUp,
+            mcTrackCands,
+            self.event_cuts,
+            self.isSignalEvent
+        )
 
         filename = self.output_dir_name + '/{}_id_{}.h5'.format("event", evtid)
         hits.to_hdf(filename, key='hits')
         truth.to_hdf(filename, key='truth')
         particles.to_hdf(filename, key='particles')
+        trigger.to_hdf(filename, key='trigger')

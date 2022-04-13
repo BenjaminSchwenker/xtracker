@@ -45,7 +45,7 @@ class SeqTracker():
             active_edges = np.where(board.y_pred == 1)[0]
             legal_moves = np.insert(active_edges, 0, -1)
 
-            p, v, _ = self.nnet.predict(board)
+            p, v, _, trig = self.nnet.predict(board)
 
             action_idx = np.argmax(p)
             action = legal_moves[action_idx]
@@ -58,4 +58,4 @@ class SeqTracker():
         if self.args.verbose:
             print("Game over: Turn ", str(it), "Result ", str(self.game.getGameScore(board)))
 
-        return board.y_pred, self.game.getGameScore(board)
+        return board.y_pred, self.game.getGameScore(board), board.trig_pred

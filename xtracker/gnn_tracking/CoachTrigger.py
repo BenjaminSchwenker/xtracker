@@ -16,26 +16,21 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from xtracker.gnn_tracking.Arena import Arena
-from xtracker.gnn_tracking.MCTS import MCTS
-from xtracker.gnn_tracking.ImTracker import ImTracker
-from xtracker.gnn_tracking.TrackingSolver import TrackingSolver
+from xtracker.gnn_tracking.ArenaTrigger import ArenaTrigger
 
 
-class Coach():
+class CoachTrigger():
     """
     This class executes the learning. It uses the functions defined
     in Game and NeuralNet. args are specified in main.py.
     """
 
-    def __init__(self, game, nnet, args):
+    def __init__(self, game, tracker, nnet, args):
         self.game = game
+        self.tracker = tracker
         self.nnet = nnet
         self.pnet = self.nnet.__class__()  # the competitor network
         self.args = args
-        self.mcts = MCTS(self.game, self.nnet, self.args)
-        self.tracker = ImTracker(self.game, self.nnet, self.args.model)
-
         self.trainExamplesHistory = []  # history of examples from args.numItersForTrainExamplesHistory latest iterations
         self.skipFirstSelfPlay = False  # can be overriden in loadTrainExamples()
 
@@ -46,7 +41,7 @@ class Coach():
 
     def executeEpisode(self):
         """
-        This function plays one episode.
+        This function plays one episode, computes trigger for on one event (==100ns of data with VTX hits).
         As the game is played, each turn is added as a training example to
         trainExamples. The game is played till the game ends. After the game
         ends, the outcome of the game is used to assign values to each example
@@ -56,73 +51,25 @@ class Coach():
         uses temp=0.
 
         Returns:
-            trainExamples: a list of examples of the form (board, currPlayer, pi, v, trig)
-                           pi is the policy vector and v is the game score and trig is the mc trigger
+            trainExamples: a list of examples of the form (x, y)
+                           x is batch of hit embeddings and y is trigger value (truth)
         """
         trainExamples = []
         board = self.game.getInitBoard()
-        solver = TrackingSolver(self.game)
-        # Todo get rid of curPlayer
-        self.curPlayer = 1
-        episodeStep = 0
 
-        while True:
+        # Compute hit embedings
+        x = self.tracker.embed_hits(board)
+        # True trigger
+        y = board.trig
 
-            episodeStep += 1
-
-            # Compute policy for next step
-            if self.args.training.supervised_training:
-                # Imitation learning
-                pi, _, _ = solver.predict(board)
-            else:
-                # Alpha zero learning
-                temp = int(episodeStep < self.args.training.tempThreshold)
-                pi = self.mcts.getActionProb(board, temp=temp)
-
-            # Sample the training example
-            if episodeStep == 1:
-                if np.random.rand() < self.args.training.pre_scale_examples:
-                    trainExamples.append([board, self.curPlayer, pi, None, None])
-            else:
-                trainExamples.append([board, self.curPlayer, pi, None, None])
-
-            # Draw the number of steps (1,2,3 ..) until we sample
-            # new step into trainExamples
-            delta = np.random.geometric(p=self.args.training.pre_scale_examples)
-
-            # Compute the number of steps left in a perfect game
-            steps_left = solver.steps_left(pi)
-
-            if delta >= steps_left:
-                # Decide if we want so sample last step before finishing the game
-                if np.random.rand() < self.args.training.pre_stop_example:
-                    board, self.curPlayer = self.game.getPerfectState(board, stop=False)
-                    pi, _ = solver.predict(board)
-                    trainExamples.append([board, self.curPlayer, pi, None, None])
-                    print('Sample last action')
-
-                # Move into perfect state and stop game
-                board, self.curPlayer = self.game.getPerfectState(board, stop=True)
-
-            else:
-                # In a perfect game, the next delta steps will not
-                # stop.
-                action = np.random.choice(len(pi), delta, replace=False, p=pi)
-                action = board.get_legal_moves()[action]
-                board, self.curPlayer = self.game.getNextStateNoStop(board, self.curPlayer, action)
-
-            if self.game.getGameEnded(board, self.curPlayer):
-                r = self.game.getGameScore(board)
-                trig = board.trig
-                return [(x[0], x[2], r, trig) for x in trainExamples]
+        trainExamples.append((x, y))
+        return trainExamples
 
     def learn(self):
         """
         Performs numIters iterations with numEps episodes of self-play in each
         iteration. After every iteration, it retrains neural network with
-        examples in trainExamples (which has a maximum length of maxlenofQueue).
-        It then pits the new neural network against the old one and accepts it
-        only if it wins >= updateThreshold fraction of games.
+        examples in trainExamples (which has a maximum length of maxlenofQueue)
         """
 
         for i in range(1, self.args.training.numIters + 1):
@@ -139,7 +86,6 @@ class Coach():
                 iterationTrainExamples = deque([], maxlen=self.args.training.maxlenOfQueue)
 
                 for _ in tqdm(range(self.args.training.numEps), desc="Self Play"):
-                    self.mcts = MCTS(self.game, self.nnet, self.args.model)  # reset search tree
                     episodeExamples = self.executeEpisode()
                     sum_examples += len(episodeExamples)
                     iterationTrainExamples += episodeExamples
@@ -153,11 +99,6 @@ class Coach():
                 self.trainExamplesHistory.pop(0)
 
             summary['play_time'] = time.time() - start_time
-
-            # backup history to a file
-            # NB! the examples were collected using the model from the previous iteration, so (i-1)
-            # ToDo: train examples very big, make saving optional and turn off as default
-            # self.saveTrainExamples(i - 1)
 
             # shuffle examples before training
             trainExamples = []
@@ -180,37 +121,32 @@ class Coach():
 
             logging.info('PITTING AGAINST PREVIOUS VERSION')
             start_time = time.time()
-            ptracker = ImTracker(self.game, self.pnet, self.args.model)
-            ntracker = ImTracker(self.game, self.nnet, self.args.model)
-            arena = Arena(ptracker, ntracker, self.game)
+
+            arena = ArenaTrigger(self.nnet, self.nnet, self.game, self.tracker)
             scores_p, scores_n = arena.playGames(self.args.training.arenaCompare)
             p_score = np.mean(scores_p)
             n_score = np.mean(scores_n)
-            summary['pit_time'] = time.time() - start_time
 
             logging.info('NEW/PREV SCORE : %f / %f' % (n_score, p_score))
-            if False:
-                logging.info('REJECTING NEW MODEL')
-                self.nnet.load_checkpoint(folder=self.args.training.checkpoint, filename='temp.pth.tar')
-            else:
-                logging.info('ACCEPTING NEW MODEL')
+            logging.info('ACCEPTING NEW MODEL')
 
-                # summarize the iteration
-                summary['iter'] = i
-                summary['train_sampled_examples'] = sum_examples
-                summary['pit_nnet_score'] = n_score
-                summary['pit_pnet_score'] = p_score
+            # summarize the iteration
+            summary['pit_time'] = time.time() - start_time
+            summary['iter'] = i
+            summary['train_sampled_examples'] = sum_examples
+            summary['pit_nnet_score'] = n_score
+            summary['pit_pnet_score'] = p_score
 
-                # save summary
-                best_iter, best_score = self.save_summary(summary)
+            # save summary
+            best_iter, best_score = self.save_summary(summary)
 
-                # save checkpoint
-                self.nnet.save_checkpoint(folder=self.args.training.checkpoint, filename=self.getCheckpointFile(i))
+            # save checkpoint
+            self.nnet.save_checkpoint(folder=self.args.training.checkpoint, filename=self.getCheckpointFile(i))
 
-                # save checkpoint for current best network (not necessarily the last)
-                logging.info(f'Checkpoint from Iter {best_iter} is best, score is {best_score}')
-                self.pnet.load_checkpoint(folder=self.args.training.checkpoint, filename=self.getCheckpointFile(best_iter))
-                self.pnet.save_checkpoint(folder=self.args.training.checkpoint, filename='best.pth.tar')
+            # save checkpoint for current best network (not necessarily the last)
+            logging.info(f'Checkpoint from Iter {best_iter} is best, score is {best_score}')
+            self.pnet.load_checkpoint(folder=self.args.training.checkpoint, filename=self.getCheckpointFile(best_iter))
+            self.pnet.save_checkpoint(folder=self.args.training.checkpoint, filename='best.pth.tar')
 
     def getCheckpointFile(self, iteration):
         return 'checkpoint_' + str(iteration) + '.pth.tar'
