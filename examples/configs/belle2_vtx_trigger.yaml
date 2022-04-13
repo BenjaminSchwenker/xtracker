@@ -51,18 +51,14 @@ selection:
 
 # Training configuration
 training:
-    numIters: 280               # Number of training iterations 
-    numEps: 20                  # Number of new games to simulate during a new iteration.
+    numIters: 480               # Number of training iterations 
+    numEps: 40                  # Number of new games to simulate during a new iteration.
     maxlenOfQueue: 200000       # Number of new game examples (per iteration) to train the neural networks.
-    arenaCompare: 100           # Number of games to played in arena for network evaluation 
-    tempThreshold: 5            # Unused
-    supervised_training: True
+    arenaCompare: 200           # Number of games to played in arena for network evaluation 
     checkpoint: ${HEP_DATA}/model_vtx_trigger/
     load_model: False
     load_folder_file: !!python/tuple ["${HEP_DATA}/model_vtx_trigger/","best.pth.tar"]
     numItersForTrainExamplesHistory: 2 
-    pre_scale_examples: 0.01 #0.01
-    pre_stop_example: 0.0 
 
 model: 
     nIter: 20
