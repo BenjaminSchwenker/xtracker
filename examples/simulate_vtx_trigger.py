@@ -20,7 +20,7 @@ Usage: Set environment variabel for GT and background files. Execute two times f
 export BELLE2_VTX_UPGRADE_GT=upgrade_2022-01-21_vtx_5layer
 export BELLE2_VTX_BACKGROUND_DIR=path/to/overlay_files/
 basf2 simulate_vtx_trigger.py -- configs/belle2_vtx_trigger.yaml --bbbar
-basf2 simulate_vtx_trigger.py -- configs/belle2_vtx_trigger.yaml 
+basf2 simulate_vtx_trigger.py -- configs/belle2_vtx_trigger.yaml
 """
 
 import argparse
