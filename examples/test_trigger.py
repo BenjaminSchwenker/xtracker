@@ -24,6 +24,7 @@ import generators as ge
 import simulation as si
 import modularAnalysis as ma
 from variables import variables as vm
+import variables
 
 import argparse
 import os
@@ -146,41 +147,27 @@ def main():
     add_trigger_EffCalculation(path)
 
     vm.addAlias('l1', 'L1Trigger')
-    vm.addAlias('hie', 'L1PSNM(hie)')
-    vm.addAlias('c4', 'L1PSNM(c4)')
-    vm.addAlias('eclmumu', 'L1PSNM(eclmumu)')
-    vm.addAlias('ffo', 'L1PSNM(ffo)')
-    vm.addAlias('fff', 'L1PSNM(fff)')
-    vm.addAlias('fso', 'L1PSNM(fso)')
-    vm.addAlias('sso', 'L1PSNM(sso)')
-    vm.addAlias('ffs', 'L1PSNM(ffs)')
-    vm.addAlias('sss', 'L1PSNM(sss)')
     vm.addAlias('vtx',  'eventExtraInfo(VTXTrigger)')
     vm.addAlias('vtx_out',  'eventExtraInfo(VTXTriggerClassifierOutput)')
 
-    my_event_variables = [
-        'l1',
-        'hie',
-        'c4',
-        'eclmumu',
-        'ffo',
-        'fff',
-        'fso',
-        'sso',
-        'ffs',
-        'sss',
-        'vtx',
-        'vtx_out'
-    ]
+    trigger_lines = []
+    for line in variables.getAllTrgNames():
+        if line in ['random', 'z', 'y']:
+            continue
+        vm.addAlias(line, f'L1PSNM({line})')
+        trigger_lines.append(line)
 
-    ma.fillParticleListFromMC('pi+:MC', cut='', addDaughters=True, skipNonPrimaryDaughters=True, path=path)
+    trg_variables = ['l1', 'vtx', 'vtx_out'] + trigger_lines
 
-    path.add_module('VariablesToEventBasedTree',
-                    fileName=args.output,
-                    particleList='pi+:MC',
-                    variables=['isSignal', 'p', 'pt', 'pz', 'E', 'z0', 'phi', 'theta', 'charge'],
-                    event_variables=my_event_variables
-                    )
+    ma.fillParticleListFromMC('pi+:MC', cut='', path=path)
+
+    ma.variablesToNtuple(
+        "pi+:MC",
+        variables=['isSignal', 'isPrimarySignal', 'p', 'pt', 'pz', 'E', 'z', 'phi', 'theta', 'charge'] + trg_variables,
+        filename=args.output,
+        treename="tree",
+        path=path,
+    )
 
     # add output
     # path.add_module('RootOutput')
