@@ -7,6 +7,8 @@
 from basf2 import register_module
 
 from xtracker.basf2_modules.gnn_tracker_module import GNNTracker
+from xtracker.basf2_modules.gnn_trigger_module import GNNTrigger
+from xtracker.basf2_modules.triggerEffCalculation import EffModule
 from xtracker.basf2_modules.track_printer_module import TrackPrinter
 
 
@@ -72,3 +74,32 @@ def add_track_printer(
         printSimHits=printSimHits,
     )
     path.add_module(printer)
+
+
+def add_vtx_trigger(
+    path,
+    tracker_model_path,
+    trigger_model_path,
+    event_cuts,
+    segment_cuts,
+    tracker_config,
+    threshold=0.5,
+):
+    """
+    add vtx trigger module to path
+    """
+
+    # add the tracker
+    trigger = GNNTrigger(
+        tracker_model_path=tracker_model_path,
+        trigger_model_path=trigger_model_path,
+        event_cuts=event_cuts,
+        segment_cuts=segment_cuts,
+        tracker_config=tracker_config,
+        threshold=threshold,
+    )
+    path.add_module(trigger)
+
+
+def add_trigger_EffCalculation(path):
+    path.add_module(EffModule())
