@@ -48,6 +48,12 @@ selection:
     feature_scale_t: 1.0
     useMC: False 
 
+# Networks configuration
+networks:
+    embedding_dim: 16
+    tracker_layer_size: 32
+    n_update_iters: 5
+    trigger_layer_size: 64
 
 # Training configuration
 training:

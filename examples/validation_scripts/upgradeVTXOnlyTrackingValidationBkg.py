@@ -49,6 +49,7 @@ def setupFinderModule(path):
         event_cuts=config['event_cuts'],
         segment_cuts=config['selection'],
         tracker_config=config['model'],
+        networks_config=config['networks'],
     )
 
 

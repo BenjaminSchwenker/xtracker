@@ -97,7 +97,7 @@ def main():
     g = Game(train_data_loader, valid_data_loader)
     logging.info('Loaded %s...', Game.__name__)
 
-    nnet = nn()
+    nnet = nn(config['networks']['embedding_dim'],config['networks']['tracker_layer_size'],config['networks']['n_update_iters'])
     logging.info('Loaded %s...', nn.__name__)
 
     if args.training.load_model:

@@ -22,6 +22,7 @@ def add_vtx_track_finding_gnn(
     event_cuts={},
     segment_cuts={},
     tracker_config={},
+    networks_config={},
 ):
     """
     Convenience function for adding all graph neural network track finder modules
@@ -40,6 +41,7 @@ def add_vtx_track_finding_gnn(
     :param event_cuts: dictionary of parameters for selecting event data for tracking
     :param segment_cuts: dictionary of parameters for selecting segments between hits
     :param tracker_config: dictionary of additional tracker configurations
+    :param networks_config: dictionary of additional networks configurations (embedding dimension, layer size, number of updates)
     """
 
     # setup the event level tracking info to log errors and stuff
@@ -58,6 +60,7 @@ def add_vtx_track_finding_gnn(
         event_cuts=event_cuts,
         segment_cuts=segment_cuts,
         tracker_config=tracker_config,
+        networks_config=networks_config,
         trackCandidatesColumnName=reco_tracks)
     path.add_module(tracker)
 

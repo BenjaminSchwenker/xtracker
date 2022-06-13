@@ -22,9 +22,8 @@ use_cuda = torch.cuda.is_available()
 
 
 class NNetWrapper(NeuralNet):
-    def __init__(self):
-        self.nnet = tnet(input_dim=3, hidden_dim=64, n_graph_iters=3,
-                         hidden_activation='ReLU', layer_norm=True)
+    def __init__(self,embedding_dim,layer_size,n_update_iters):
+        self.nnet = tnet(embedding_dim, layer_size, n_graph_iters=n_update_iters)
 
         if use_cuda:
             self.nnet.cuda()
@@ -145,16 +144,16 @@ class NNetWrapper(NeuralNet):
         filepath = os.path.join(folder, filename)
         filepath = os.path.expandvars(filepath)
         if not os.path.exists(filepath):
-            raise ("No model in path {}".format(filepath))
+            import errno
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath)
         map_location = None if use_cuda else 'cpu'
         checkpoint = torch.load(filepath, map_location=map_location)
         self.nnet.load_state_dict(checkpoint['state_dict'])
 
 
 class NNetWrapperTrigger(NeuralNet):
-    def __init__(self):
-        self.nnet = TriggerNNetwork(input_dim=64, hidden_dim=64,
-                                    hidden_activation='ReLU', layer_norm=True)
+    def __init__(self,embedding_dim,layer_size):
+        self.nnet = TriggerNNetwork(embedding_dim, layer_size)
 
         if use_cuda:
             self.nnet.cuda()
@@ -232,7 +231,8 @@ class NNetWrapperTrigger(NeuralNet):
         filepath = os.path.join(folder, filename)
         filepath = os.path.expandvars(filepath)
         if not os.path.exists(filepath):
-            raise ("No model in path {}".format(filepath))
+            import errno
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath)
         map_location = None if use_cuda else 'cpu'
         checkpoint = torch.load(filepath, map_location=map_location)
         self.nnet.load_state_dict(checkpoint['state_dict'])

@@ -1,9 +1,10 @@
 # Global parameters 
 global:
-    n_events: 1000 #5000                                # Number of events to simulate 
-    rndseed: 12345                                      # Random seed 
-    event_dir: ${HEP_DATA}/events_belle2_vtx            # Path to events
-    graph_dir: ${HEP_DATA}/hitgraphs_belle2_vtx         # Path to hit graphs 
+    n_events: 1000 #5000                                                # Number of events to simulate
+    rndseed: 12345                                                      # Random seed
+    event_dir: ${HEP_DATA}/events_belle2_vtx                    # Path to events
+    graph_dir: ${HEP_DATA}/hitgraphs_belle2_vtx                 # Path to hit graphs
+    tracker_config: ${XTRACKER_CONFIG_PATH}                             # Path to tracker config
 
 # basf2 MC trackfinder params 
 mctrackfinder:
@@ -49,25 +50,24 @@ selection:
 
 # Networks configuration
 networks:
-    embedding_dim: 64
-    tracker_layer_size: 64
+    embedding_dim: 16
+    tracker_layer_size: 32
     n_update_iters: 5
     trigger_layer_size: 64
 
 # Training configuration
 training:
     numIters: 480               # Number of training iterations 
-    numEps: 50                  # Number of new games to simulate during a new iteration.
+    numEps: 40                  # Number of new games to simulate during a new iteration.
     maxlenOfQueue: 200000       # Number of new game examples (per iteration) to train the neural networks.
-    arenaCompare: 100           # Number of games to played in arena for network evaluation 
-    tempThreshold: 5            # Unused
-    supervised_training: True
-    checkpoint: ${HEP_DATA}/model_vtx/
+    arenaCompare: 200           # Number of games to played in arena for network evaluation 
+    checkpoint: ${HEP_DATA}/model_vtx_trigger_16_32_5/
     load_model: False
-    load_folder_file: !!python/tuple ["${HEP_DATA}/model_vtx/","best.pth.tar"]
+    load_folder_file: !!python/tuple ["${HEP_DATA}/model_vtx_trigger_16_32_5/","best.pth.tar"]
     numItersForTrainExamplesHistory: 2 
-    pre_scale_examples: 0.01 #0.01
-    pre_stop_example: 0.0 
+    supervised_training: True
+    pre_scale_examples: 0.01
+    pre_stop_example: 0.0
 
 model: 
     nIter: 20

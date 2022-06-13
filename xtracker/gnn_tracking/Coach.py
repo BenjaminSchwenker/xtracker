@@ -31,7 +31,7 @@ class Coach():
     def __init__(self, game, nnet, args):
         self.game = game
         self.nnet = nnet
-        self.pnet = self.nnet.__class__()  # the competitor network
+        self.pnet = self.nnet.__class__(args.networks['embedding_dim'],args.networks['tracker_layer_size'],args.networks['n_update_iters'])  # the competitor network
         self.args = args
         self.mcts = MCTS(self.game, self.nnet, self.args)
         self.tracker = ImTracker(self.game, self.nnet, self.args.model)

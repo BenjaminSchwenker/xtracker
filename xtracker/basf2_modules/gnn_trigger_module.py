@@ -29,6 +29,7 @@ class GNNTrigger(b2.Module):
         event_cuts,
         segment_cuts,
         tracker_config,
+        networks_config,
         threshold=0.5,
         cdcHitsColumnName='CDCHits',
     ):
@@ -46,6 +47,8 @@ class GNNTrigger(b2.Module):
         self.segment_cuts = segment_cuts
         #: cached dictionary of params for trackfinding
         self.tracker_config = tracker_config
+        #: cached dictionary of params for GNN networks
+        self.networks_config = networks_config
         #: cached name of the CDCHits StoreArray
         self.cdcHitsColumnname = cdcHitsColumnName
         #: cached value of trigger threshold
@@ -69,13 +72,13 @@ class GNNTrigger(b2.Module):
         self.event_extra_info.registerInDataStore()
 
     def setupTracker_(self):
-        n1 = NNetWrapper()
+        n1 = NNetWrapper(self.networks_config['embedding_dim'],self.networks_config['tracker_layer_size'],self.networks_config['n_update_iters'])
         n1.load_checkpoint(self.tracker_model_path, 'best.pth.tar')
         tracker = ImTracker(self.game, n1, dotdict(self.tracker_config))
         return tracker
 
     def setupTrigger_(self):
-        trigger = NNetWrapperTrigger()
+        trigger = NNetWrapperTrigger(self.networks_config['embedding_dim'],self.networks_config['trigger_layer_size'])
         trigger.load_checkpoint(self.trigger_model_path, 'best.pth.tar')
         return trigger
 

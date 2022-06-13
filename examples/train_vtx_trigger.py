@@ -78,7 +78,7 @@ def setupTracker(game, config_path):
     checkpoint_dir = os.path.expandvars(config['training']['checkpoint'])
 
     # Load neural net
-    n1 = tnet()
+    n1 = tnet(config['networks']['embedding_dim'],config['networks']['tracker_layer_size'],config['networks']['n_update_iters'])
     n1.load_checkpoint(checkpoint_dir, 'best.pth.tar')
 
     # Built a tracker
@@ -127,7 +127,7 @@ def main():
     tracker = setupTracker(g, config_path=config['global']['tracker_config'])
 
     # Setup untrained trigger
-    nnet = nn()
+    nnet = nn(config['networks']['embedding_dim'],config['networks']['trigger_layer_size'])
     logging.info('Loaded %s...', nn.__name__)
 
     if args.training.load_model:

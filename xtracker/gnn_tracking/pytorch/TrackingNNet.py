@@ -51,11 +51,11 @@ class EdgeNetwork(nn.Module):
     sigmoid activation.
     """
 
-    def __init__(self, input_dim, hidden_dim=8, hidden_activation='ReLU',
-                 layer_norm=True):
+    def __init__(self, embedding_dim, layer_size, hidden_activation,
+                 layer_norm):
         super(EdgeNetwork, self).__init__()
-        self.network = make_mlp(input_dim * 2,
-                                [hidden_dim, hidden_dim, hidden_dim, 1],
+        self.network = make_mlp(embedding_dim * 2,
+                                [layer_size]*3+[1],
                                 hidden_activation=hidden_activation,
                                 output_activation=None,
                                 layer_norm=layer_norm)
@@ -76,10 +76,11 @@ class NodeNetwork(nn.Module):
     network to compute the new features.
     """
 
-    def __init__(self, input_dim, output_dim, hidden_activation='ReLU',
-                 layer_norm=True):
+    def __init__(self, embedding_dim, layer_size, hidden_activation,
+                 layer_norm):
         super(NodeNetwork, self).__init__()
-        self.network = make_mlp(input_dim * 3, [output_dim] * 4,
+        self.network = make_mlp(embedding_dim * 3,
+                                [layer_size]*3 + [embedding_dim],
                                 hidden_activation=hidden_activation,
                                 output_activation=hidden_activation,
                                 layer_norm=layer_norm)
@@ -109,12 +110,12 @@ class GlobalNetwork(nn.Module):
     a decoder net.
     """
 
-    def __init__(self, input_dim, hidden_dim=8,
-                 hidden_activation='Tanh', layer_norm=True):
+    def __init__(self, embedding_dim, layer_size,
+                 hidden_activation, layer_norm):
         super(GlobalNetwork, self).__init__()
         # Setup the qvalue layers
-        self.network = make_mlp(input_dim,
-                                [hidden_dim, hidden_dim, hidden_dim, 3],
+        self.network = make_mlp(embedding_dim,
+                                [layer_size]*3+[3],
                                 hidden_activation=hidden_activation,
                                 output_activation=None,
                                 layer_norm=layer_norm)
@@ -139,29 +140,29 @@ class GlobalNetwork(nn.Module):
 
 
 class TrackingNNet(nn.Module):
-    def __init__(self, input_dim=3, hidden_dim=64, n_graph_iters=3,
-                 hidden_activation='ReLU', layer_norm=True):
+    def __init__(self, embedding_dim, layer_size, input_dim=3, n_graph_iters=3,
+                 hidden_activation='ReLU', layer_norm=False):
         super(TrackingNNet, self).__init__()
         self.n_graph_iters = n_graph_iters
 
         # Setup the input network
-        self.input_network = make_mlp(input_dim, [hidden_dim],
+        self.input_network = make_mlp(input_dim, [embedding_dim],
                                       output_activation=hidden_activation,
                                       layer_norm=layer_norm)
         # Setup the edge network
-        self.edge_network = EdgeNetwork(hidden_dim, hidden_dim,
-                                        hidden_activation, layer_norm=layer_norm)
+        self.edge_network = EdgeNetwork(embedding_dim, layer_size,
+                                        hidden_activation, layer_norm)
         # Setup the node layers
-        self.node_network = NodeNetwork(hidden_dim, hidden_dim,
-                                        hidden_activation, layer_norm=layer_norm)
+        self.node_network = NodeNetwork(embedding_dim, layer_size,
+                                        hidden_activation, layer_norm)
 
         # Setup the edge pruning head
-        self.prune_network = EdgeNetwork(hidden_dim, hidden_dim,
-                                         hidden_activation, layer_norm=layer_norm)
+        self.prune_network = EdgeNetwork(embedding_dim, layer_size,
+                                         hidden_activation, layer_norm)
 
         # Setup the global head
-        self.global_network = GlobalNetwork(hidden_dim, hidden_dim,
-                                            hidden_activation, layer_norm=layer_norm)
+        self.global_network = GlobalNetwork(embedding_dim, layer_size,
+                                            hidden_activation, layer_norm)
 
     def forward(self, x, edge_index):
         """Apply forward pass of the model"""
@@ -221,12 +222,12 @@ class TriggerNNetwork(nn.Module):
     A module which takes the graph embedding and computes a trigger.
     """
 
-    def __init__(self, input_dim=64, hidden_dim=64,
-                 hidden_activation='Tanh', layer_norm=True):
+    def __init__(self, embedding_dim, layer_size,
+                 hidden_activation='ReLU', layer_norm=False):
         super(TriggerNNetwork, self).__init__()
         # Setup the qvalue layers
-        self.network = make_mlp(input_dim,
-                                [hidden_dim, hidden_dim, hidden_dim, 1],
+        self.network = make_mlp(embedding_dim,
+                                [layer_size]*3+[1],
                                 hidden_activation=hidden_activation,
                                 output_activation=None,
                                 layer_norm=layer_norm)

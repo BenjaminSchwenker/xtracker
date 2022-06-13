@@ -33,6 +33,7 @@ class GNNTracker(b2.Module):
         event_cuts,
         segment_cuts,
         tracker_config,
+        networks_config,
         cdcHitsColumnName='CDCHits',
         trackCandidatesColumnName="RecoTracks",
     ):
@@ -48,6 +49,8 @@ class GNNTracker(b2.Module):
         self.segment_cuts = segment_cuts
         #: cached dictionary of params for trackfinding
         self.tracker_config = tracker_config
+        #: cached dictionary of params for GNN networks
+        self.networks_config = networks_config
         #: cached name of the CDCHits StoreArray
         self.cdcHitsColumnname = cdcHitsColumnName
         #: cached name of the RecoTracks StoreArray
@@ -62,7 +65,7 @@ class GNNTracker(b2.Module):
         #: cached tracker object for processes the hitgraphs
         if not self.tracker_config['useMC']:
             # Using Imitation tracker
-            net = NNet()
+            net = NNet(self.networks_config['embedding_dim'],self.networks_config['tracker_layer_size'],self.networks_config['n_update_iters'])
             net.load_checkpoint(self.model_path, 'best.pth.tar')
             self.tracker = ImTracker(self.game, net, dotdict(self.tracker_config))
         else:
