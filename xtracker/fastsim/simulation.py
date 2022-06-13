@@ -5,7 +5,6 @@
 # This file is licensed under GPLv3+ licence, see LICENSE.md.
 
 
-
 import numpy as np
 import random
 import math

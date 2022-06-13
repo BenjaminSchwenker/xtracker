@@ -89,7 +89,7 @@ def cut_on_segments(segments, phi_slope_max, z0_max, debug=False):
 
     # Hits should differ in at least one attribute to avoid self loops
     good_seg_mask = (
-        # (layer_diff < 4) &
+        (layer_diff < 4) &
         (dr2 > 0)
     )
 
@@ -209,6 +209,7 @@ def make_graph(
     hits,
     truth,
     particles,
+    trigger,
     evtid,
     n_det_layers,
     pt_min,
@@ -246,7 +247,8 @@ def make_graph(
         graphs_all = [construct_graph_mc(
             section_hits, truth,
             feature_names=feature_names,
-            feature_scales=feature_scales
+            feature_scales=feature_scales,
+            trigger=trigger
         ) for section_hits in hits_sections]
 
     else:
@@ -255,7 +257,8 @@ def make_graph(
             section_hits, n_det_layers, segment_type,
             phi_slope_max=phi_slope_max, z0_max=z0_max,
             feature_names=feature_names,
-            feature_scales=feature_scales
+            feature_scales=feature_scales,
+            trigger=trigger
         ) for section_hits in hits_sections]
 
     graphs = [x[0] for x in graphs_all]
@@ -277,7 +280,7 @@ def construct_segments(hits, layer_pairs, phi_slope_max, z0_max):
             hits2 = layer_groups.get_group(layer2)
         # If an event has no hits on a layer, we get a KeyError.
         # In that case we just skip to the next layer pair
-        except KeyError as e:
+        except KeyError:
             continue
         # Construct the segments
         raw_segments = create_segments(hits1, hits2)
@@ -327,7 +330,7 @@ def construct_segments_mc(hits, truth, phi_slope_max=np.inf, z0_max=np.inf):
 
 def construct_graph(hits, n_det_layers, segment_type,
                     phi_slope_max, z0_max,
-                    feature_names, feature_scales):
+                    feature_names, feature_scales, trigger):
     """Construct one graph (e.g. from one event)"""
 
     # Construct layer pairs
@@ -343,12 +346,12 @@ def construct_graph(hits, n_det_layers, segment_type,
     segments = construct_segments(hits, layer_pairs, phi_slope_max, z0_max)
 
     # Prepare the graph tuple with selected and scaled hit features
-    graph = prepare_graph_matrices(hits, segments, feature_names, feature_scales)
+    graph = prepare_graph_matrices(hits, segments, feature_names, feature_scales, trigger)
 
     return graph
 
 
-def construct_graph_mc(hits, truth, feature_names, feature_scales):
+def construct_graph_mc(hits, truth, feature_names, feature_scales, trigger):
     """Construct one graph (e.g. from one event)
 
     Produce a perfect graph only contain true edges and zero false edges.
@@ -360,12 +363,12 @@ def construct_graph_mc(hits, truth, feature_names, feature_scales):
     segments = construct_segments_mc(hits, truth)
 
     # Prepare the graph tuple with selected and scaled hit features
-    graph = prepare_graph_matrices(hits, segments, feature_names, feature_scales)
+    graph = prepare_graph_matrices(hits, segments, feature_names, feature_scales, trigger)
 
     return graph
 
 
-def prepare_graph_matrices(hits, segments, feature_names, feature_scales,):
+def prepare_graph_matrices(hits, segments, feature_names, feature_scales, trigger):
 
     # Prepare the graph matrices
     n_hits = hits.shape[0]
@@ -376,6 +379,7 @@ def prepare_graph_matrices(hits, segments, feature_names, feature_scales,):
     Ro = np.zeros((n_hits, n_edges), dtype=np.uint8)
     y = np.zeros(n_edges, dtype=np.float32)
     hitId = hits['hit_id']
+    trig = trigger.to_numpy().astype(np.float32)
 
     # We have the segments' hits given by dataframe label,
     # so we need to translate into positional indices.
@@ -400,7 +404,7 @@ def prepare_graph_matrices(hits, segments, feature_names, feature_scales,):
     y[:] = (pid1 == pid2) & (hid1 + 1 == hid2) & (pid1 >= 0) & (pid2 >= 0)
 
     # Return a tuple of the results
-    return Graph(X, Ri, Ro, y, P), hitId
+    return Graph(X, Ri, Ro, y, P, trig), hitId
 
 
 def select_hits(hits, truth, particles, pt_min=0):

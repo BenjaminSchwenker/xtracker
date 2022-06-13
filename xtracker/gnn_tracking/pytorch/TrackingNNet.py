@@ -14,9 +14,6 @@ vector p over all legal moves and a value v of the current board.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torch.autograd import Variable
-
 from torch_scatter import scatter_add
 
 
@@ -117,7 +114,7 @@ class GlobalNetwork(nn.Module):
         super(GlobalNetwork, self).__init__()
         # Setup the qvalue layers
         self.network = make_mlp(input_dim,
-                                [hidden_dim, hidden_dim, hidden_dim, 2],
+                                [hidden_dim, hidden_dim, hidden_dim, 3],
                                 hidden_activation=hidden_activation,
                                 output_activation=None,
                                 layer_norm=layer_norm)
@@ -184,9 +181,10 @@ class TrackingNNet(nn.Module):
 
         pi = torch.cat((g[0, 0].unsqueeze(0), e))
         v = g[0, 1].unsqueeze(0)
+        trig = g[0, 2].unsqueeze(0)
 
         # Return the output of policy and value heads
-        return F.log_softmax(pi, dim=0), torch.sigmoid(v), torch.sigmoid(a)
+        return F.log_softmax(pi, dim=0), torch.sigmoid(v), torch.sigmoid(a), torch.sigmoid(trig)
 
     def step_gnn(self, x, edge_index):
         # Previous hidden state
@@ -204,62 +202,51 @@ class TrackingNNet(nn.Module):
 
         return x
 
-    def node_step(self, x, edge_index, node_mask):
-        # Previous hidden state
-        x0 = x[node_mask]
-
-        # Apply edge network
-        logit_e = self.edge_network(x, edge_index)
-        e = torch.sigmoid(logit_e)
-
-        # Apply node network
-        x = self.node_network.node_update(x, e, edge_index, node_mask)
-
-        # Residual connection
-        x = x + x0
-
-        return x
-
-    def forward_cached(self, x, edge_index):
-        """Apply forward pass of the model"""
-
-        xs = []
+    def forward_embed(self, x, edge_index):
+        """Apply forward pass to compute hits and event embedding"""
 
         # Apply input network to get hidden representation
         x = self.input_network(x)
-        xs.append(x.detach().clone())
 
         # Loop over message passing layers
         for _ in range(self.n_graph_iters):
             x = self.step_gnn(x, edge_index)
-            xs.append(x.detach().clone())
 
-        x_summed = torch.sum(x, dim=0, keepdim=True)
+        # Returns batch of node embeddings
+        return x
 
-        # Return embeddings and embedding sum
-        return xs, x_summed
 
-    def forward_finalize(self, x, edge_index):
-        """Apply forward pass of the model"""
+class TriggerNNetwork(nn.Module):
+    """
+    A module which takes the graph embedding and computes a trigger.
+    """
 
-        g = self.global_network(x, edge_index)
-        e = self.prune_network(x, edge_index)
+    def __init__(self, input_dim=64, hidden_dim=64,
+                 hidden_activation='Tanh', layer_norm=True):
+        super(TriggerNNetwork, self).__init__()
+        # Setup the qvalue layers
+        self.network = make_mlp(input_dim,
+                                [hidden_dim, hidden_dim, hidden_dim, 1],
+                                hidden_activation=hidden_activation,
+                                output_activation=None,
+                                layer_norm=layer_norm)
 
-        pi = torch.cat((g[0, 0].unsqueeze(0), e))
-        v = g[0, 1].unsqueeze(0)
+    def forward(self, x):
 
-        # Return the output of policy and value heads
-        return F.log_softmax(pi, dim=0), torch.sigmoid(v), e
+        # We follow here:  https://arxiv.org/pdf/1806.01261.pdf
+        #
+        # The global output should be the expected score that can
+        # be reached from this state and the probability for stopping
+        # at this state.
+        #
+        # Sum up the representations
+        # here I have assumed that x is 2D and the each row is
+        # representation of an input, so the following operation
+        # will reduce the number of rows to 1, but it will keep
+        # the tensor as a 2D tensor.
 
-    def forward_finalize_fast(self, e, x_summed):
-        """Apply forward pass of the model"""
+        xs = torch.sum(x, dim=0, keepdim=True)
+        trig = self.network(xs)
 
-        # At this stage, you put together the updated pieces
-        # to get a final policy vector
-        g = self.global_network.network(x_summed)
-        # e = self.prune_network(x, edge_index)
-        pi = torch.cat((g[0, 0].unsqueeze(0), e))
-        v = g[0, 1].unsqueeze(0)
-
-        # Return the output of policy and value heads
-        return F.log_softmax(pi, dim=0), torch.sigmoid(v), e
+        # compute the output
+        return torch.sigmoid(trig)

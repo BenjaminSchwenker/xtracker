@@ -37,7 +37,7 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('test_belle2.py')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/belle2_vtx_cdc.yaml')
+    add_arg('config', nargs='?', default='configs/belle2_vtx.yaml')
     add_arg("--gen", default='bbar', help="Generator: 'gun', 'bbar'")
     return parser.parse_args()
 
